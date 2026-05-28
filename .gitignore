@@ -1,0 +1,22 @@
+node_modules
+dist
+dist-ssr
+.env
+.env.local
+*.local
+
+# Editor
+.vscode
+.idea
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# PWA generated
+dev-dist
+sw.js*
+workbox-*.js
