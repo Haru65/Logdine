@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bike,
   Leaf,
   Minus,
   Plus,
@@ -79,9 +78,6 @@ export default function POSPage() {
                   </TabsTrigger>
                   <TabsTrigger value="take_away" className="gap-2">
                     <ShoppingBag className="size-4" /> Take Away
-                  </TabsTrigger>
-                  <TabsTrigger value="delivery" className="gap-2">
-                    <Bike className="size-4" /> Delivery
                   </TabsTrigger>
                 </TabsList>
               </Tabs>

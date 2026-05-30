@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BarChart3, Download, FileText } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { BarChart3, Download, FileText, PackageSearch } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -11,28 +11,91 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useProductReport, useRevenueReport } from '@/hooks/useRestaurant';
-import { cn, formatCompact, formatCurrency } from '@/lib/utils';
+import { cn, formatCompact, formatCurrency, formatDate } from '@/lib/utils';
 
 const periods = [
-  { value: 'day' as const, label: 'Today' },
-  { value: 'week' as const, label: '7 days' },
-  { value: 'month' as const, label: '30 days' },
-  { value: 'year' as const, label: '12 months' },
+  { value: 'day' as const, label: 'Today', days: 0 },
+  { value: 'week' as const, label: '7 days', days: 6 },
+  { value: 'month' as const, label: '30 days', days: 29 },
+  { value: 'year' as const, label: '12 months', days: 364 },
 ];
 
-const mockData = Array.from({ length: 7 }).map((_, i) => ({
-  label: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i],
-  value: Math.round(2000 + Math.random() * 4000 + i * 300),
-}));
+type Period = (typeof periods)[number]['value'];
+
+function toDateInput(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getRange(period: Period) {
+  const end = new Date();
+  const start = new Date();
+  const days = periods.find((p) => p.value === period)?.days ?? 6;
+  start.setDate(end.getDate() - days);
+  return { startDate: toDateInput(start), endDate: toDateInput(end) };
+}
 
 export default function ReportsPage() {
-  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('week');
-  const { data: revenue, isLoading: revLoading } = useRevenueReport(period);
-  const { data: products, isLoading: prodLoading } = useProductReport();
+  const [period, setPeriod] = useState<Period>('week');
+  const [dates, setDates] = useState(() => getRange('week'));
 
-  const data = revenue?.breakdown?.length ? revenue.breakdown : mockData;
+  const { data: revenue, isLoading: revLoading, isError: revError } = useRevenueReport(period, dates);
+  const { data: products, isLoading: prodLoading, isError: prodError } = useProductReport(dates);
+
+  const chartData = useMemo(
+    () =>
+      (revenue?.data ?? [])
+        .slice()
+        .reverse()
+        .map((row) => ({
+          label: row.period,
+          value: Number(row.total_revenue ?? 0),
+          orders: Number(row.total_orders ?? 0),
+        })),
+    [revenue],
+  );
+
+  const productRows = products?.items ?? [];
+  const summary = revenue?.summary;
+
+  function selectPeriod(next: Period) {
+    setPeriod(next);
+    setDates(getRange(next));
+  }
+
+  function exportCsv() {
+    const rows = [
+      ['Period', 'Revenue', 'Orders'],
+      ...chartData.map((row) => [row.label, row.value, row.orders]),
+      [],
+      ['Product', 'Category', 'Qty Sold', 'Revenue'],
+      ...productRows.map((row) => [
+        row.name,
+        row.category_name ?? '',
+        Number(row.total_quantity ?? 0),
+        Number(row.total_revenue ?? 0),
+      ]),
+    ];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `restrohub-report-${dates.startDate}-to-${dates.endDate}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="container py-6 lg:py-8">
@@ -43,30 +106,26 @@ export default function ReportsPage() {
             Reports & Analytics
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Trends, top products, and exports.
+            Live revenue, order volume, and product performance.
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-1.5">
+          <Button variant="outline" className="gap-1.5" onClick={() => window.print()}>
             <FileText className="size-4" /> Export PDF
           </Button>
-          <Button variant="outline" className="gap-1.5">
+          <Button variant="outline" className="gap-1.5" onClick={exportCsv}>
             <Download className="size-4" /> Export CSV
           </Button>
         </div>
       </div>
 
       <Card className="mb-4">
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-lg">Revenue</CardTitle>
-            <p className="text-sm text-muted-foreground">Breakdown by {period}</p>
-          </div>
-          <div className="flex gap-1 rounded-lg bg-muted/60 p-1">
+        <CardContent className="grid gap-3 p-4 lg:grid-cols-[1fr_auto]">
+          <div className="flex flex-wrap gap-1 rounded-lg bg-muted/60 p-1">
             {periods.map((p) => (
               <button
                 key={p.value}
-                onClick={() => setPeriod(p.value)}
+                onClick={() => selectPeriod(p.value)}
                 className={cn(
                   'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
                   period === p.value ? 'bg-background shadow-soft' : 'text-muted-foreground hover:bg-background/50',
@@ -76,15 +135,53 @@ export default function ReportsPage() {
               </button>
             ))}
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label>Start date</Label>
+              <Input
+                type="date"
+                value={dates.startDate}
+                onChange={(e) => setDates((value) => ({ ...value, startDate: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>End date</Label>
+              <Input
+                type="date"
+                value={dates.endDate}
+                onChange={(e) => setDates((value) => ({ ...value, endDate: e.target.value }))}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="mb-4 grid gap-3 md:grid-cols-4">
+        <Metric title="Revenue" value={formatCurrency(summary?.total_revenue ?? 0)} loading={revLoading} />
+        <Metric title="Orders" value={String(summary?.total_orders ?? 0)} loading={revLoading} />
+        <Metric title="Avg order" value={formatCurrency(summary?.avg_order_value ?? 0)} loading={revLoading} />
+        <Metric title="Items sold" value={String(products?.summary?.total_items_sold ?? 0)} loading={prodLoading} />
+      </div>
+
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle className="text-lg">Revenue</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {formatDate(dates.startDate)} to {formatDate(dates.endDate)}
+          </p>
         </CardHeader>
         <CardContent className="h-[320px] pl-0">
           {revLoading ? (
             <div className="grid h-full place-items-center">
               <Skeleton className="h-[260px] w-full" />
             </div>
+          ) : revError ? (
+            <EmptyState title="Could not load revenue report" />
+          ) : chartData.length === 0 ? (
+            <EmptyState title="No revenue in this date range" />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+              <BarChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis
@@ -113,7 +210,7 @@ export default function ReportsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Top Products</CardTitle>
-          <p className="text-sm text-muted-foreground">By quantity sold</p>
+          <p className="text-sm text-muted-foreground">By quantity sold in the selected date range</p>
         </CardHeader>
         <CardContent className="p-0">
           {prodLoading ? (
@@ -122,33 +219,39 @@ export default function ReportsPage() {
                 <Skeleton key={i} className="h-12" />
               ))}
             </div>
+          ) : prodError ? (
+            <EmptyState title="Could not load product report" />
+          ) : productRows.length === 0 ? (
+            <EmptyState title="No products sold in this date range" />
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="px-4 py-2.5 text-left font-semibold">Rank</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">Product</th>
-                  <th className="px-4 py-2.5 text-right font-semibold">Qty Sold</th>
-                  <th className="px-4 py-2.5 text-right font-semibold">Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(products ?? mockProducts).slice(0, 10).map((p, i) => (
-                  <tr key={p.product_id ?? i} className="border-b border-border/40 last:border-0 hover:bg-accent/30">
-                    <td className="px-4 py-3">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rank</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Qty Sold</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {productRows.slice(0, 10).map((p, i) => (
+                  <TableRow key={p.id ?? i}>
+                    <TableCell>
                       <span className="grid size-7 place-items-center rounded-md bg-primary/10 font-mono text-xs font-bold text-primary">
                         {i + 1}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 font-medium">{p.name}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{p.quantity_sold}</td>
-                    <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                      {formatCurrency(p.revenue)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell>{p.category_name ?? '-'}</TableCell>
+                    <TableCell className="text-right tabular-nums">{Number(p.total_quantity ?? 0)}</TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">
+                      {formatCurrency(Number(p.total_revenue ?? 0))}
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
@@ -156,10 +259,22 @@ export default function ReportsPage() {
   );
 }
 
-const mockProducts = [
-  { product_id: '1', name: 'Paneer Tikka Masala', quantity_sold: 142, revenue: 42_600 },
-  { product_id: '2', name: 'Margherita Pizza', quantity_sold: 128, revenue: 38_400 },
-  { product_id: '3', name: 'Chicken Biryani', quantity_sold: 95, revenue: 28_500 },
-  { product_id: '4', name: 'Masala Dosa', quantity_sold: 87, revenue: 13_050 },
-  { product_id: '5', name: 'Cold Coffee', quantity_sold: 76, revenue: 9_120 },
-];
+function Metric({ title, value, loading }: { title: string; value: string; loading?: boolean }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+        {loading ? <Skeleton className="mt-2 h-7 w-24" /> : <p className="mt-1 font-serif text-2xl font-bold">{value}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptyState({ title }: { title: string }) {
+  return (
+    <div className="grid min-h-40 place-items-center gap-2 p-8 text-center text-muted-foreground">
+      <PackageSearch className="size-10 opacity-40" />
+      <p className="text-sm font-medium">{title}</p>
+    </div>
+  );
+}

@@ -81,7 +81,7 @@ export default function KDSPage() {
         <div>
           <h1 className="flex items-center gap-2 font-serif text-3xl font-bold tracking-tight">
             <ChefHat className="size-7 text-primary" />
-            Kitchen Display
+            Orders & Kitchen
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Live order queue · Auto-refreshing every 15s
@@ -137,6 +137,7 @@ export default function KDSPage() {
                         order={order}
                         next={col.next}
                         nextLabel={col.nextLabel}
+                        isLoading={updateStatus.isPending}
                         onAdvance={(status) =>
                           updateStatus.mutate({ orderId: order.id, status })
                         }
@@ -157,11 +158,13 @@ function OrderTicket({
   order,
   next,
   nextLabel,
+  isLoading,
   onAdvance,
 }: {
   order: Order;
   next?: OrderStatus;
   nextLabel?: string;
+  isLoading?: boolean;
   onAdvance: (s: OrderStatus) => void;
 }) {
   // Tickets older than 10 min in pending/preparing get "urgent" treatment.
@@ -230,10 +233,11 @@ function OrderTicket({
             <Button
               size="sm"
               variant="soft"
+              disabled={isLoading}
               onClick={() => onAdvance(next)}
               className="mt-3 w-full justify-between"
             >
-              {nextLabel}
+              {isLoading ? 'Updating...' : nextLabel}
               <ArrowRight className="size-3.5" />
             </Button>
           )}

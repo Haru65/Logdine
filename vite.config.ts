@@ -1,9 +1,18 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 
-export default defineConfig({
+const parsePort = (value: string | undefined, fallback: number) => {
+  const port = Number.parseInt(value || '', 10);
+  return Number.isInteger(port) && port > 0 && port <= 65535 ? port : fallback;
+};
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const backendApi = env.BACKEND_API || env.VITE_API_URL || `http://localhost:${parsePort(env.BACKEND_PORT, 3000)}`;
+
+  return ({
   envPrefix: ['VITE_', 'BACKEND_'],
   plugins: [
     react(),
@@ -62,11 +71,12 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    host: env.VITE_HOST || 'localhost',
+    port: parsePort(env.VITE_PORT, 5173),
     proxy: {
-      '/auth': 'http://localhost:3000',
-      '/admin': 'http://localhost:3000',
-      '/api': 'http://localhost:3000',
+      '/auth': backendApi,
+      '/admin': backendApi,
+      '/api': backendApi,
     },
   },
   build: {
@@ -81,4 +91,5 @@ export default defineConfig({
       },
     },
   },
+  });
 });

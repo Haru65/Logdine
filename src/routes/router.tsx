@@ -8,13 +8,15 @@ import { PageLoader } from '@/components/common/PageLoader';
 // Lazy-loaded pages – keeps the initial bundle lean.
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage'));
-const POSPage = lazy(() => import('@/pages/admin/POSPage'));
 const KDSPage = lazy(() => import('@/pages/admin/KDSPage'));
-const OrdersPage = lazy(() => import('@/pages/admin/OrdersPage'));
 const MenuPage = lazy(() => import('@/pages/admin/MenuPage'));
+const MenuOCRWorkflowPage = lazy(() => import('@/pages/admin/MenuOCRWorkflowPage'));
 const TablesPage = lazy(() => import('@/pages/admin/TablesPage'));
 const ReportsPage = lazy(() => import('@/pages/admin/ReportsPage'));
 const OffersPage = lazy(() => import('@/pages/admin/OffersPage'));
+const ComboManagementPage = lazy(() => import('@/pages/admin/ComboManagementPage'));
+const PaymentConfigPage = lazy(() => import('@/pages/admin/PaymentConfigPage'));
+const IntegrationConfigPage = lazy(() => import('@/pages/admin/IntegrationConfigPage'));
 const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
 const PublicMenuPage = lazy(() => import('@/pages/public/PublicMenuPage'));
 const OrderStatusPage = lazy(() => import('@/pages/public/OrderStatusPage'));
@@ -40,17 +42,19 @@ export const router = createBrowserRouter([
     ),
     children: [
       { path: 'dashboard', element: withSuspense(<DashboardPage />) },
-      { path: 'pos', element: withSuspense(<POSPage />) },
-      { path: 'billing', element: withSuspense(<POSPage />) },
+      { path: 'pos', element: <Navigate to="/kds" replace /> },
+      { path: 'billing', element: <Navigate to="/kds" replace /> },
       { path: 'kds', element: withSuspense(<KDSPage />) },
-      { path: 'orders', element: withSuspense(<OrdersPage />) },
+      { path: 'orders', element: <Navigate to="/kds" replace /> },
       { path: 'menu', element: withSuspense(<MenuPage />) },
+      { path: 'menu/extraction', element: withSuspense(<MenuOCRWorkflowPage />) },
       { path: 'tables', element: withSuspense(<TablesPage />) },
       { path: 'reports', element: withSuspense(<ReportsPage />) },
       { path: 'offers', element: withSuspense(<OffersPage />) },
+      { path: 'offers/combos', element: withSuspense(<ComboManagementPage />) },
+      { path: 'payment-config', element: withSuspense(<PaymentConfigPage />) },
+      { path: 'integration-config', element: withSuspense(<IntegrationConfigPage />) },
       { path: 'settings', element: withSuspense(<SettingsPage />) },
-      { path: 'reservations', element: withSuspense(<TablesPage />) },
-      { path: 'delivery', element: withSuspense(<OrdersPage />) },
     ],
   },
 

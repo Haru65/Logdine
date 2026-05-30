@@ -62,6 +62,12 @@ export const endpoints = {
     offers: `/admin/restaurant/${tenantId}/offers`,
     offer: (id: string) => `/admin/restaurant/${tenantId}/offers/${id}`,
 
+    combos: `/admin/restaurant/${tenantId}/combos`,
+    combo: (id: string) => `/admin/restaurant/${tenantId}/combos/${id}`,
+
+    paymentConfig: `/admin/restaurant/${tenantId}/payment-config`,
+    paymentValidate: `/admin/restaurant/${tenantId}/payment-config/validate`,
+
     convertToJson: `/admin/restaurant/${tenantId}/menu/convert-to-json`,
     ocrProcess: `/admin/restaurant/${tenantId}/ocr/process`,
     extractImage: `/admin/restaurant/${tenantId}/menu/extract-from-image`,

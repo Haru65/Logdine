@@ -34,11 +34,14 @@ export const qk = {
   order: (tenantId: string, orderId: string) => ['orders', tenantId, orderId] as const,
 
   reports: {
-    revenue: (tenantId: string, period: string) => ['reports', tenantId, 'revenue', period] as const,
-    products: (tenantId: string) => ['reports', tenantId, 'products'] as const,
+    revenue: (tenantId: string, period: string, dates?: object) => ['reports', tenantId, 'revenue', period, dates] as const,
+    products: (tenantId: string, dates?: object) => ['reports', tenantId, 'products', dates] as const,
   },
 
   offers: (tenantId: string) => ['offers', tenantId] as const,
+  combos: (tenantId: string) => ['combos', tenantId] as const,
+  paymentConfig: (tenantId: string, provider: string) => ['payment-config', tenantId, provider] as const,
+  integrationConfig: (tenantId: string, provider: string) => ['integration-config', tenantId, provider] as const,
 
   publicMenu: (slug: string, table: string) => ['public', 'menu', slug, table] as const,
   publicOrder: (slug: string, id: string) => ['public', 'order', slug, id] as const,

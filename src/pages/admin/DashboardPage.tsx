@@ -165,7 +165,7 @@ export default function DashboardPage() {
             ) : (
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
                 {tables.map((t) => {
-                  const s = statusStyles[t.status];
+                  const s = statusStyles[t.status] || statusStyles.available;
                   return (
                     <button
                       key={t.id}

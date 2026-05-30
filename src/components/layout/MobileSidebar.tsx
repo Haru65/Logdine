@@ -1,14 +1,14 @@
 import { NavLink } from 'react-router-dom';
-import { ChefHat, ClipboardList, LayoutDashboard, ShoppingCart, UtensilsCrossed } from 'lucide-react';
+import { ChefHat, ClipboardList, LayoutDashboard, Table2, UtensilsCrossed } from 'lucide-react';
 import { Logo } from '@/components/common/Logo';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/pos', label: 'POS', icon: ShoppingCart },
   { to: '/orders', label: 'Orders', icon: ClipboardList },
   { to: '/kds', label: 'Kitchen', icon: ChefHat },
   { to: '/menu', label: 'Menu', icon: UtensilsCrossed },
+  { to: '/tables', label: 'Tables', icon: Table2 },
 ];
 
 export function MobileSidebar() {

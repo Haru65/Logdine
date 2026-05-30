@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, QrCode, Table2, Users } from 'lucide-react';
+import { Clock, QrCode, ScanLine, Table2, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useTables, useUpdateTable } from '@/hooks/useRestaurant';
-import { cn } from '@/lib/utils';
+import { cn, timeAgo } from '@/lib/utils';
+import BulkAddTablesDialog from '@/components/BulkAddTablesDialog';
+import QRCodeDisplay from '@/components/QRCodeDisplay';
 import type { RestaurantTable, TableStatus } from '@/types';
 
 const statusStyles: Record<TableStatus, string> = {
@@ -42,9 +44,7 @@ export default function TablesPage() {
             Create tables, generate QR codes, and track live status.
           </p>
         </div>
-        <Button className="gap-1.5">
-          <Plus className="size-4" /> Add table
-        </Button>
+        <BulkAddTablesDialog />
       </div>
 
       {isLoading ? (
@@ -61,9 +61,9 @@ export default function TablesPage() {
             <p className="max-w-xs text-sm text-muted-foreground">
               Add tables to start tracking occupancy and generate customer QR codes.
             </p>
-            <Button className="mt-2 gap-1.5">
-              <Plus className="size-4" /> Add your first table
-            </Button>
+            <div className="mt-2">
+              <BulkAddTablesDialog />
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -100,12 +100,21 @@ function TableCard({ table, onClick }: { table: RestaurantTable; onClick: () => 
         </Badge>
         <span className={cn('size-2.5 rounded-full', statusDot[table.status])} />
       </div>
+
+      {/* QR Code Display */}
+      <div className="flex justify-center py-2">
+        <QRCodeDisplay table={table} size={80} />
+      </div>
+
       <div className="absolute inset-x-3 bottom-3">
-        <p className="font-serif text-3xl font-bold tracking-tight">{table.table_number}</p>
-        <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+        <p className="font-serif text-lg font-bold tracking-tight">{table.table_number}</p>
+        <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
           <Users className="size-3" /> {table.capacity} seats
         </div>
-        <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground capitalize">
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <ScanLine className="size-3" /> {table.qr_scan_count ?? 0} scans
+        </div>
+        <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground capitalize">
           {table.status}
         </p>
       </div>
@@ -153,11 +162,34 @@ function TableEditor({ table, onClose }: { table: RestaurantTable; onClose: () =
 
         <Card>
           <CardContent className="grid place-items-center gap-3 p-6">
-            <div className="grid size-32 place-items-center rounded-xl bg-foreground p-3">
-              <QrCode className="size-full text-background" />
+            <div className="flex justify-center">
+              <QRCodeDisplay table={table} size={128} />
             </div>
             <p className="text-xs text-muted-foreground">QR code · scan to order</p>
-            <Button variant="outline" size="sm" className="gap-1.5">
+            <div className="text-center">
+              <p className="text-sm font-semibold">{table.qr_scan_count ?? 0} total scans</p>
+              <p className="mt-0.5 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                <Clock className="size-3" />
+                {table.last_qr_scan_at ? `Last scanned ${timeAgo(table.last_qr_scan_at)}` : 'No scans yet'}
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1.5"
+              onClick={() => {
+                // Find the canvas element within the QRCodeDisplay
+                const canvasElement = document.querySelector('canvas');
+                if (canvasElement) {
+                  const link = document.createElement('a');
+                  link.href = canvasElement.toDataURL('image/png');
+                  link.download = `table-${table.table_number}-qr.png`;
+                  link.click();
+                } else {
+                  console.warn('QR code canvas not found');
+                }
+              }}
+            >
               <QrCode className="size-3.5" /> Download QR
             </Button>
           </CardContent>
@@ -171,7 +203,7 @@ function TableEditor({ table, onClose }: { table: RestaurantTable; onClose: () =
               update.mutate(
                 {
                   tableId: table.id,
-                  data: { table_number: number, capacity: Number(capacity), status },
+                  data: { name: number, capacity: Number(capacity), status },
                 },
                 { onSuccess: onClose },
               );

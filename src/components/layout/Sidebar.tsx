@@ -1,18 +1,17 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  ShoppingCart,
-  Receipt,
   ChefHat,
-  ClipboardList,
   UtensilsCrossed,
   Table2,
-  CalendarClock,
-  Bike,
   BarChart3,
   Tag,
   Settings,
+  Wand2,
   ChevronLeft,
+  CreditCard,
+  PlugZap,
+  Boxes,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Logo } from '@/components/common/Logo';
@@ -32,21 +31,17 @@ const groups: NavGroup[] = [
     items: [{ to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
   },
   {
-    label: 'Orders & Billing',
+    label: 'Orders',
     items: [
-      { to: '/pos', label: 'POS Billing', icon: ShoppingCart },
-      { to: '/billing', label: 'Billing', icon: Receipt },
       { to: '/kds', label: 'Kitchen Display', icon: ChefHat },
-      { to: '/orders', label: 'Orders', icon: ClipboardList },
     ],
   },
   {
     label: 'Restaurant',
     items: [
       { to: '/menu', label: 'Menu Management', icon: UtensilsCrossed },
+      { to: '/menu/extraction', label: 'Menu OCR', icon: Wand2 },
       { to: '/tables', label: 'Table Management', icon: Table2 },
-      { to: '/reservations', label: 'Reservations', icon: CalendarClock },
-      { to: '/delivery', label: 'Delivery Management', icon: Bike },
     ],
   },
   {
@@ -54,6 +49,14 @@ const groups: NavGroup[] = [
     items: [
       { to: '/reports', label: 'Reports', icon: BarChart3 },
       { to: '/offers', label: 'Offers & Promotions', icon: Tag },
+      { to: '/offers/combos', label: 'Combo Offers', icon: Boxes },
+    ],
+  },
+  {
+    label: 'Integrations',
+    items: [
+      { to: '/payment-config', label: 'Payments', icon: CreditCard },
+      { to: '/integration-config', label: 'Delivery Apps', icon: PlugZap },
     ],
   },
   {

@@ -1,7 +1,9 @@
 import apiClient, { unwrap } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import type {
+  ComboOffer,
   DashboardMetrics,
+  IntegrationConfig,
   MenuAddon,
   MenuCategory,
   MenuItem,
@@ -9,11 +11,53 @@ import type {
   Offer,
   Order,
   OrderStatus,
+  PaymentConfig,
+  PaymentProvider,
   ProductReport,
   RestaurantTable,
   RevenueReport,
   Tenant,
 } from '@/types';
+
+function normalizeOrder(raw: unknown): Order {
+  const order = raw as Record<string, any>;
+  const status = order.status === 'cooking' ? 'preparing' : order.status;
+  const paymentStatus = order.payment_status ?? order.paymentStatus ?? 'pending';
+
+  return {
+    id: String(order.id ?? order.orderId ?? ''),
+    tenant_id: String(order.tenant_id ?? order.restaurantId ?? ''),
+    table_id: order.table_id ?? order.tableId,
+    table_number: order.table_number ?? order.tableName ?? order.table?.name,
+    type: order.type ?? (order.source_type === 'delivery' ? 'delivery' : order.source_type === 'take_away' ? 'take_away' : 'dine_in'),
+    status: status ?? 'pending',
+    payment_status: paymentStatus === 'completed' ? 'paid' : paymentStatus,
+    payment_method: order.payment_method ?? order.paymentMethod ?? order.payment_provider,
+    total_amount: Number(order.total_amount ?? order.totalAmount ?? order.total ?? 0),
+    tax_amount: Number(order.tax_amount ?? order.taxAmount ?? 0),
+    discount_amount: Number(order.discount_amount ?? order.discountAmount ?? 0),
+    subtotal: Number(order.subtotal ?? order.subtotal_amount ?? order.subtotalAmount ?? order.total_amount ?? order.totalAmount ?? 0),
+    notes: order.notes,
+    customer_name: order.customer_name ?? order.customerName,
+    customer_phone: order.customer_phone ?? order.customerPhone,
+    created_at: order.created_at ?? order.createdAt ?? new Date().toISOString(),
+    updated_at: order.updated_at ?? order.updatedAt ?? order.created_at ?? order.createdAt ?? new Date().toISOString(),
+    items: Array.isArray(order.items)
+      ? order.items.map((item: Record<string, any>) => ({
+          id: String(item.id ?? `${order.id}-${item.menu_item_id ?? item.menuItemId ?? item.name ?? 'item'}`),
+          order_id: String(item.order_id ?? item.orderId ?? order.id ?? ''),
+          menu_item_id: String(item.menu_item_id ?? item.menuItemId ?? item.menuItem?.id ?? ''),
+          name_snapshot: item.name_snapshot ?? item.name ?? item.menuItem?.name ?? 'Item',
+          price_snapshot: Number(item.price_snapshot ?? item.price ?? item.menuItem?.price ?? 0),
+          quantity: Number(item.quantity ?? 1),
+          variants: item.variants ?? [],
+          addons: item.addons ?? [],
+          notes: item.notes,
+          status: item.status === 'cooking' ? 'preparing' : item.status,
+        }))
+      : [],
+  };
+}
 
 /**
  * Restaurant-scoped API methods. Each method takes `tenantId` explicitly
@@ -82,7 +126,26 @@ export const restaurantService = {
     tables: Partial<RestaurantTable>[],
   ): Promise<RestaurantTable[]> {
     const res = await apiClient.post(endpoints.restaurant(tenantId).tablesBulk, { tables });
-    return unwrap<RestaurantTable[]>(res.data);
+    // Backend returns { created, total, tables } - extract and format the tables array
+    const responseData = res.data.data || res.data;
+    const tablesList = Array.isArray(responseData) ? responseData : (responseData.tables || []);
+    
+    // Map backend response to frontend format
+    return tablesList.map((t: any) => ({
+      id: t.id,
+      tenant_id: t.tenant_id,
+      name: t.name,
+      identifier: t.identifier,
+      table_number: t.name || t.table_number, // Map name to table_number
+      capacity: t.capacity || 4,
+      status: t.status || 'available',
+      qr_code_url: t.qr_url, // Map qr_url to qr_code_url
+      qr_url: t.qr_url,
+      zone: t.zone,
+      qr_scan_count: t.qr_scan_count || 0,
+      last_qr_scan_at: t.last_qr_scan_at,
+      is_active: t.is_active,
+    }));
   },
 
   async updateTable(
@@ -210,22 +273,23 @@ export const restaurantService = {
     filters?: { status?: OrderStatus; from?: string; to?: string; type?: string },
   ): Promise<Order[]> {
     const res = await apiClient.get(endpoints.restaurant(tenantId).orders, { params: filters });
-    return unwrap<Order[]>(res.data);
+    return unwrap<unknown[]>(res.data).map(normalizeOrder);
   },
 
   async getOrder(tenantId: string, orderId: string): Promise<Order> {
     const res = await apiClient.get(endpoints.restaurant(tenantId).order(orderId));
-    return unwrap<Order>(res.data);
+    return normalizeOrder(unwrap<unknown>(res.data));
   },
 
   async getOrderById(tenantId: string, orderId: string): Promise<Order> {
     const res = await apiClient.get(endpoints.restaurant(tenantId).order(orderId));
-    return unwrap<Order>(res.data);
+    return normalizeOrder(unwrap<unknown>(res.data));
   },
 
   async updateOrderStatus(tenantId: string, orderId: string, status: OrderStatus): Promise<Order> {
-    const res = await apiClient.patch(endpoints.restaurant(tenantId).order(orderId), { status });
-    return unwrap<Order>(res.data);
+    const apiStatus = status === 'preparing' ? 'cooking' : status;
+    const res = await apiClient.patch(endpoints.restaurant(tenantId).order(orderId), { status: apiStatus });
+    return normalizeOrder(unwrap<unknown>(res.data));
   },
 
   async updateOrderItemStatus(
@@ -242,17 +306,21 @@ export const restaurantService = {
   async getRevenueReport(
     tenantId: string,
     period: 'day' | 'week' | 'month' | 'year',
-    dates?: { from?: string; to?: string },
+    dates: { startDate: string; endDate: string },
   ): Promise<RevenueReport> {
+    const apiPeriod = period === 'year' || period === 'month' ? 'monthly' : period === 'week' ? 'daily' : 'daily';
     const res = await apiClient.get(endpoints.restaurant(tenantId).revenueReport, {
-      params: { period, ...dates },
+      params: { period: apiPeriod, ...dates },
     });
     return unwrap<RevenueReport>(res.data);
   },
 
-  async getProductReport(tenantId: string): Promise<ProductReport[]> {
-    const res = await apiClient.get(endpoints.restaurant(tenantId).productsReport);
-    return unwrap<ProductReport[]>(res.data);
+  async getProductReport(
+    tenantId: string,
+    dates: { startDate: string; endDate: string },
+  ): Promise<ProductReport> {
+    const res = await apiClient.get(endpoints.restaurant(tenantId).productsReport, { params: dates });
+    return unwrap<ProductReport>(res.data);
   },
 
   async getOrderReport(
@@ -287,18 +355,18 @@ export const restaurantService = {
     return unwrap<unknown[]>(res.data);
   },
 
-  async getIntegrationConfig(tenantId: string, provider: string): Promise<unknown> {
+  async getIntegrationConfig(tenantId: string, provider: string): Promise<IntegrationConfig | null> {
     const res = await apiClient.get(endpoints.restaurant(tenantId).integrationConfig(provider));
-    return unwrap<unknown>(res.data);
+    return unwrap<IntegrationConfig | null>(res.data);
   },
 
   async saveIntegrationConfig(
     tenantId: string,
     provider: string,
     config: Record<string, unknown>,
-  ): Promise<unknown> {
+  ): Promise<IntegrationConfig> {
     const res = await apiClient.post(endpoints.restaurant(tenantId).integrationConfig(provider), config);
-    return unwrap<unknown>(res.data);
+    return unwrap<IntegrationConfig>(res.data);
   },
 
   async getEmailConfig(tenantId: string): Promise<unknown[]> {
@@ -338,6 +406,45 @@ export const restaurantService = {
 
   async deleteOffer(tenantId: string, id: string): Promise<void> {
     await apiClient.delete(endpoints.restaurant(tenantId).offer(id));
+  },
+
+  // ----------------------------- Combos --------------------------------------
+  async getCombos(tenantId: string): Promise<ComboOffer[]> {
+    const res = await apiClient.get(endpoints.restaurant(tenantId).combos);
+    return unwrap<ComboOffer[]>(res.data);
+  },
+
+  async createCombo(tenantId: string, data: Partial<ComboOffer>): Promise<ComboOffer> {
+    const res = await apiClient.post(endpoints.restaurant(tenantId).combos, data);
+    return unwrap<ComboOffer>(res.data);
+  },
+
+  async updateCombo(tenantId: string, id: string, data: Partial<ComboOffer>): Promise<ComboOffer> {
+    const res = await apiClient.put(endpoints.restaurant(tenantId).combo(id), data);
+    return unwrap<ComboOffer>(res.data);
+  },
+
+  async deleteCombo(tenantId: string, id: string): Promise<void> {
+    await apiClient.delete(endpoints.restaurant(tenantId).combo(id));
+  },
+
+  // ----------------------------- Payments ------------------------------------
+  async getPaymentConfig(tenantId: string, provider: PaymentProvider): Promise<PaymentConfig | null> {
+    const res = await apiClient.get(endpoints.restaurant(tenantId).paymentConfig, { params: { provider } });
+    return unwrap<PaymentConfig | null>(res.data);
+  },
+
+  async savePaymentConfig(tenantId: string, data: PaymentConfig): Promise<PaymentConfig> {
+    const res = await apiClient.post(endpoints.restaurant(tenantId).paymentConfig, data);
+    return unwrap<PaymentConfig>(res.data);
+  },
+
+  async validatePaymentConfig(
+    tenantId: string,
+    data: PaymentConfig,
+  ): Promise<{ isValid: boolean; message: string }> {
+    const res = await apiClient.post(endpoints.restaurant(tenantId).paymentValidate, data);
+    return unwrap<{ isValid: boolean; message: string }>(res.data);
   },
 
   // --------------------------- Menu extraction ------------------------------

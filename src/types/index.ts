@@ -60,6 +60,8 @@ export interface MenuVariant {
   name: string;
   price: number;
   is_default?: boolean;
+  is_available?: boolean;
+  sort_order?: number;
 }
 
 export interface MenuAddon {
@@ -67,6 +69,8 @@ export interface MenuAddon {
   name: string;
   price: number;
   is_required?: boolean;
+  is_available?: boolean;
+  sort_order?: number;
 }
 
 export interface MenuItem {
@@ -78,6 +82,7 @@ export interface MenuItem {
   price: number;
   image_url?: string;
   is_veg: boolean;
+  is_spicy?: boolean;
   is_available: boolean;
   is_featured?: boolean;
   preparation_time?: number; // minutes
@@ -94,11 +99,16 @@ export type TableStatus = 'available' | 'occupied' | 'reserved' | 'maintenance';
 export interface RestaurantTable {
   id: string;
   tenant_id: string;
+  name?: string;
+  identifier?: string;
   table_number: string;
   capacity: number;
   status: TableStatus;
   qr_code_url?: string;
+  qr_url?: string;
   zone?: string;
+  qr_scan_count?: number;
+  last_qr_scan_at?: string | null;
 }
 
 // --------------------------------------------------------------------
@@ -168,15 +178,49 @@ export interface DashboardMetrics {
 
 export interface RevenueReport {
   period: string;
-  total: number;
-  breakdown: { label: string; value: number }[];
+  data: {
+    period: string;
+    total_orders: number;
+    total_revenue: number;
+    total_tax?: number;
+    total_discount?: number;
+    avg_order_value?: number;
+    paid_orders?: number;
+    paid_revenue?: number;
+  }[];
+  summary: {
+    total_revenue: number;
+    total_orders: number;
+    avg_order_value: number;
+    payment_success_rate: number;
+  };
 }
 
 export interface ProductReport {
-  product_id: string;
-  name: string;
-  quantity_sold: number;
-  revenue: number;
+  items: {
+    id: string;
+    name: string;
+    category_name?: string;
+    total_quantity: number;
+    total_revenue: number;
+    order_count?: number;
+    avg_price?: number;
+    current_price?: number;
+    is_veg?: boolean | number;
+    is_spicy?: boolean | number;
+  }[];
+  categories: {
+    category_name: string;
+    item_count: number;
+    total_quantity: number;
+    total_revenue: number;
+  }[];
+  summary: {
+    total_items_sold: number;
+    total_revenue: number;
+    unique_items: number;
+    top_item?: unknown;
+  };
 }
 
 // --------------------------------------------------------------------
@@ -197,6 +241,53 @@ export interface Offer {
   starts_at?: string;
   ends_at?: string;
   is_active: boolean;
+}
+
+export interface ComboItem {
+  id?: string;
+  menu_item_id: string;
+  quantity: number;
+  item_name?: string;
+  item_price?: number;
+  item_image?: string;
+}
+
+export interface ComboOffer {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description?: string;
+  combo_price: number;
+  original_price?: number;
+  image_url?: string;
+  valid_from?: string;
+  valid_until?: string;
+  is_active: boolean;
+  items?: ComboItem[];
+  created_at?: string;
+}
+
+export type PaymentProvider = 'razorpay' | 'paytm';
+
+export interface PaymentConfig {
+  id?: string;
+  provider: PaymentProvider;
+  key_id: string;
+  key_secret?: string;
+  webhook_secret?: string;
+  website?: string;
+  is_active?: boolean | number;
+}
+
+export type IntegrationProvider = 'zomato' | 'swiggy';
+
+export interface IntegrationConfig {
+  id?: string;
+  provider: IntegrationProvider;
+  webhook_url?: string;
+  soapie_url?: string;
+  api_key?: string;
+  is_active?: boolean | number;
 }
 
 // --------------------------------------------------------------------
