@@ -1,8 +1,12 @@
 import { restaurantService } from '@/services/restaurant.service';
-import type { MenuItem } from '@/types';
+import type { MenuAddon, MenuItem, MenuVariant } from '@/types';
 
 export interface ExtractedMenuItem extends Partial<MenuItem> {
   category?: string;
+  isVeg?: boolean;
+  variants?: MenuVariant[];
+  addons?: MenuAddon[];
+  extras?: MenuAddon[];
 }
 
 export const menuExtractionService = {

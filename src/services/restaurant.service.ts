@@ -458,6 +458,7 @@ export const restaurantService = {
     fd.append('file', file);
     const res = await apiClient.post(endpoints.restaurant(tenantId).ocrProcess, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180_000,
     });
     return unwrap<unknown>(res.data);
   },
@@ -467,6 +468,7 @@ export const restaurantService = {
     fd.append('image', file);
     const res = await apiClient.post(endpoints.restaurant(tenantId).extractImage, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180_000,
     });
     return unwrap<unknown>(res.data);
   },
@@ -476,6 +478,7 @@ export const restaurantService = {
     fd.append('pdf', file);
     const res = await apiClient.post(endpoints.restaurant(tenantId).extractPdf, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180_000,
     });
     return unwrap<unknown>(res.data);
   },
@@ -497,6 +500,7 @@ export const restaurantService = {
     fd.append('image', file);
     const res = await apiClient.post(endpoints.restaurant(tenantId).extractAndImport, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180_000,
     });
     return unwrap<unknown>(res.data);
   },

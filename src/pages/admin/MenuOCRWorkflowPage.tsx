@@ -28,6 +28,13 @@ export default function MenuOCRWorkflowPage() {
   const defaultCategoryId = categories[0]?.id;
   const parsedItems = useMemo(() => menuExtractionService.parseMenuText(text), [text]);
 
+  const normalizeExtractedItem = (item: ExtractedMenuItem): ExtractedMenuItem => ({
+    ...item,
+    is_veg: item.is_veg ?? item.isVeg ?? true,
+    addons: item.addons ?? item.extras ?? [],
+    variants: item.variants ?? [],
+  });
+
   async function extract() {
     if (!tenantId || !file) return;
     setBusy(true);
@@ -35,9 +42,22 @@ export default function MenuOCRWorkflowPage() {
       const result = file.type === 'application/pdf'
         ? await menuExtractionService.extractTextFromPDF(tenantId, file)
         : await menuExtractionService.extractTextFromImage(tenantId, file);
-      const data = result as { text?: string; rawText?: string; items?: ExtractedMenuItem[] };
-      setText(data.text ?? data.rawText ?? '');
-      setItems(data.items?.length ? data.items : []);
+      const data = result as {
+        text?: string;
+        rawText?: string;
+        extractedText?: string;
+        cleanedText?: string;
+        items?: ExtractedMenuItem[];
+      };
+      const extractedItems = data.items?.map(normalizeExtractedItem) ?? [];
+      setText(
+        data.extractedText ??
+          data.cleanedText ??
+          data.text ??
+          data.rawText ??
+          extractedItems.map((item) => `${item.name ?? ''} - ${item.price ?? 0}`).join('\n'),
+      );
+      setItems(extractedItems);
       setStep(2);
     } catch {
       toast.error('Extraction failed. You can paste text and parse manually.');
@@ -48,21 +68,26 @@ export default function MenuOCRWorkflowPage() {
   }
 
   async function importItems() {
-    if (!tenantId || !defaultCategoryId) return;
-    const source = items.length ? items : parsedItems;
+    if (!tenantId) return;
+    const source = (items.length ? items : parsedItems).map(normalizeExtractedItem);
+    if (!source.some((item) => item.category) && !defaultCategoryId) return;
     setBusy(true);
     try {
-      await restaurantService.createItemsBulk(
-        tenantId,
-        source.map((item) => ({
-          category_id: item.category_id ?? defaultCategoryId,
-          name: item.name,
-          description: item.description,
-          price: Number(item.price ?? 0),
-          is_veg: item.is_veg ?? true,
-          is_available: true,
-        })),
-      );
+      if (source.some((item) => item.category)) {
+        await menuExtractionService.importItems(tenantId, source);
+      } else {
+        await restaurantService.createItemsBulk(
+          tenantId,
+          source.map((item) => ({
+            category_id: item.category_id ?? defaultCategoryId,
+            name: item.name,
+            description: item.description,
+            price: Number(item.price ?? 0),
+            is_veg: item.is_veg ?? true,
+            is_available: true,
+          })),
+        );
+      }
       setStep(3);
       toast.success('Menu imported');
     } finally {
@@ -141,12 +166,12 @@ export default function MenuOCRWorkflowPage() {
                     <TableRow key={`${item.name}-${index}`}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.price ?? 0}</TableCell>
-                      <TableCell>{item.is_veg === false ? 'Non-veg' : 'Veg'}</TableCell>
+                      <TableCell>{(item.is_veg ?? item.isVeg) === false ? 'Non-veg' : 'Veg'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-              <Button disabled={!defaultCategoryId || (items.length ? items : parsedItems).length === 0} loading={busy} onClick={importItems}>
+              <Button disabled={(!defaultCategoryId && !(items.length ? items : parsedItems).some((item) => item.category)) || (items.length ? items : parsedItems).length === 0} loading={busy} onClick={importItems}>
                 Import reviewed items
               </Button>
             </div>
