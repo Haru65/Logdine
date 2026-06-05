@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'ax
 import { useAuthStore } from '@/store/auth.store';
 import { toast } from 'sonner';
 
-const BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.BACKEND_API || 'http://localhost:3000';
+const BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.BACKEND_API || 'http://localhost:5001';
 const DEBUG = import.meta.env.VITE_API_DEBUG === 'true';
 
 /**

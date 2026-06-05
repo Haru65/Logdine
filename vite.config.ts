@@ -10,7 +10,7 @@ const parsePort = (value: string | undefined, fallback: number) => {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const backendApi = env.BACKEND_API || env.VITE_API_URL || `http://localhost:${parsePort(env.BACKEND_PORT, 3000)}`;
+  const backendApi = env.BACKEND_API || env.VITE_API_URL || `http://localhost:${parsePort(env.BACKEND_PORT, 5001)}`;
 
   return ({
   envPrefix: ['VITE_', 'BACKEND_'],
