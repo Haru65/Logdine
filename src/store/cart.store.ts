@@ -26,8 +26,7 @@ interface CartState {
  * remain auditable in the bill.
  */
 function unitPrice(item: MenuItem, variants: MenuVariant[]): number {
-  const variantTotal = variants.reduce((sum, v) => sum + (v.price ?? 0), 0);
-  return item.price + variantTotal;
+  return variants[0]?.price ?? item.price;
 }
 
 export const useCartStore = create<CartState>()(

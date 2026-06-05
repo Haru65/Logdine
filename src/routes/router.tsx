@@ -67,6 +67,10 @@ export const router = createBrowserRouter([
       { path: ':slug/order/:orderId', element: withSuspense(<OrderStatusPage />) },
     ],
   },
+  {
+    path: '/order/:slug/:table',
+    element: withSuspense(<PublicMenuPage />),
+  },
 
   // -------------------- 404 --------------------
   { path: '*', element: withSuspense(<NotFoundPage />) },

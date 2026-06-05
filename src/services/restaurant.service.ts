@@ -19,6 +19,8 @@ import type {
   Tenant,
 } from '@/types';
 
+const MENU_AI_TIMEOUT_MS = 600_000;
+
 function normalizeOrder(raw: unknown): Order {
   const order = raw as Record<string, any>;
   const status = order.status === 'cooking' ? 'preparing' : order.status;
@@ -458,7 +460,7 @@ export const restaurantService = {
     fd.append('file', file);
     const res = await apiClient.post(endpoints.restaurant(tenantId).ocrProcess, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 180_000,
+      timeout: MENU_AI_TIMEOUT_MS,
     });
     return unwrap<unknown>(res.data);
   },
@@ -468,7 +470,7 @@ export const restaurantService = {
     fd.append('image', file);
     const res = await apiClient.post(endpoints.restaurant(tenantId).extractImage, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 180_000,
+      timeout: MENU_AI_TIMEOUT_MS,
     });
     return unwrap<unknown>(res.data);
   },
@@ -478,7 +480,7 @@ export const restaurantService = {
     fd.append('pdf', file);
     const res = await apiClient.post(endpoints.restaurant(tenantId).extractPdf, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 180_000,
+      timeout: MENU_AI_TIMEOUT_MS,
     });
     return unwrap<unknown>(res.data);
   },
@@ -500,18 +502,22 @@ export const restaurantService = {
     fd.append('image', file);
     const res = await apiClient.post(endpoints.restaurant(tenantId).extractAndImport, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 180_000,
+      timeout: MENU_AI_TIMEOUT_MS,
     });
     return unwrap<unknown>(res.data);
   },
 
   async enrichItems(tenantId: string, data: Record<string, unknown>): Promise<unknown> {
-    const res = await apiClient.post(endpoints.restaurant(tenantId).enrichItems, data);
+    const res = await apiClient.post(endpoints.restaurant(tenantId).enrichItems, data, {
+      timeout: MENU_AI_TIMEOUT_MS,
+    });
     return unwrap<unknown>(res.data);
   },
 
   async importEnriched(tenantId: string, data: Record<string, unknown>): Promise<unknown> {
-    const res = await apiClient.post(endpoints.restaurant(tenantId).importEnriched, data);
+    const res = await apiClient.post(endpoints.restaurant(tenantId).importEnriched, data, {
+      timeout: MENU_AI_TIMEOUT_MS,
+    });
     return unwrap<unknown>(res.data);
   },
 };

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, QrCode, ScanLine, Table2, Users } from 'lucide-react';
+import { Clock, ScanLine, Table2, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { useTables, useUpdateTable } from '@/hooks/useRestaurant';
 import { cn, timeAgo } from '@/lib/utils';
 import BulkAddTablesDialog from '@/components/BulkAddTablesDialog';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
+import QRStandee from '@/components/QRStandee';
 import type { RestaurantTable, TableStatus } from '@/types';
 
 const statusStyles: Record<TableStatus, string> = {
@@ -162,10 +163,8 @@ function TableEditor({ table, onClose }: { table: RestaurantTable; onClose: () =
 
         <Card>
           <CardContent className="grid place-items-center gap-3 p-6">
-            <div className="flex justify-center">
-              <QRCodeDisplay table={table} size={128} />
-            </div>
-            <p className="text-xs text-muted-foreground">QR code · scan to order</p>
+            <QRStandee table={table} className="w-full" />
+            <p className="text-xs text-muted-foreground">QR standee · scan to order</p>
             <div className="text-center">
               <p className="text-sm font-semibold">{table.qr_scan_count ?? 0} total scans</p>
               <p className="mt-0.5 flex items-center justify-center gap-1 text-xs text-muted-foreground">
@@ -173,25 +172,6 @@ function TableEditor({ table, onClose }: { table: RestaurantTable; onClose: () =
                 {table.last_qr_scan_at ? `Last scanned ${timeAgo(table.last_qr_scan_at)}` : 'No scans yet'}
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="gap-1.5"
-              onClick={() => {
-                // Find the canvas element within the QRCodeDisplay
-                const canvasElement = document.querySelector('canvas');
-                if (canvasElement) {
-                  const link = document.createElement('a');
-                  link.href = canvasElement.toDataURL('image/png');
-                  link.download = `table-${table.table_number}-qr.png`;
-                  link.click();
-                } else {
-                  console.warn('QR code canvas not found');
-                }
-              }}
-            >
-              <QrCode className="size-3.5" /> Download QR
-            </Button>
           </CardContent>
         </Card>
 

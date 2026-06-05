@@ -1,20 +1,32 @@
 import apiClient, { unwrap } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
-import type { MenuCategory, MenuItem, Order, PaymentMethod, RestaurantTable, Tenant } from '@/types';
+import type { MenuAddon, MenuCategory, MenuItem, MenuVariant, Order, PaymentMethod, RestaurantTable, Tenant } from '@/types';
 
 export interface PublicMenuResponse {
   restaurant: Tenant;
   table: RestaurantTable;
   categories: MenuCategory[];
   items: MenuItem[];
+  taxConfig?: {
+    taxTypes?: Array<{
+      id: string;
+      name: string;
+      percentage: number;
+      isActive: boolean;
+    }>;
+  } | null;
 }
+
+type PublicMenuCategory = MenuCategory & { items?: MenuItem[] };
+
+const toBool = (value: unknown) => value === true || value === 1;
 
 export interface CreateOrderPayload {
   items: Array<{
     menu_item_id: string;
     quantity: number;
-    variants?: string[];
-    addons?: string[];
+    selectedVariant?: Pick<MenuVariant, 'id' | 'name' | 'price'> | null;
+    selectedAddons?: Array<Pick<MenuAddon, 'id' | 'name' | 'price'>>;
     notes?: string;
   }>;
   paymentMethod: PaymentMethod;
@@ -31,7 +43,41 @@ export const publicOrderService = {
 
   async getMenu(slug: string, table: string): Promise<PublicMenuResponse> {
     const res = await apiClient.get(endpoints.public.menu(slug, table));
-    return unwrap<PublicMenuResponse>(res.data);
+    const data = unwrap<Omit<PublicMenuResponse, 'categories' | 'items'> & {
+      categories?: PublicMenuCategory[];
+      items?: MenuItem[];
+    }>(res.data);
+    const categories: PublicMenuCategory[] = data.categories ?? [];
+    const items = data.items ?? categories.flatMap((category) =>
+      (category.items ?? []).map((item) => ({
+        ...item,
+        category_id: item.category_id ?? category.id,
+        price: Number(item.price ?? 0),
+        is_veg: toBool(item.is_veg),
+        is_spicy: toBool(item.is_spicy),
+        is_available: toBool(item.is_available),
+        variants: (item.variants ?? []).map((variant) => ({
+          ...variant,
+          price: Number(variant.price ?? 0),
+        })),
+        addons: (item.addons ?? []).map((addon) => ({
+          ...addon,
+          price: Number(addon.price ?? 0),
+        })),
+      })),
+    );
+
+    return {
+      ...data,
+      table: {
+        ...data.table,
+        table_number: data.table.table_number ?? data.table.name ?? data.table.identifier ?? table,
+        status: data.table.status ?? 'available',
+        capacity: Number(data.table.capacity ?? 4),
+      },
+      categories,
+      items,
+    };
   },
 
   async getTableOrders(slug: string, table: string): Promise<Order[]> {
