@@ -4,9 +4,11 @@ import { Download, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth.store';
 import type { RestaurantTable } from '@/types';
+import { getCustomerOrderUrl } from '@/lib/customerOrderUrl';
 
 const ASSET_BASE = '/qr-design/images';
 const CARD_BG = '#f0ede8';
+const INK = '#111111';
 const ORANGE = '#d95b28';
 
 interface QRStandeeProps {
@@ -31,10 +33,7 @@ const createQrDataUrl = (text: string) =>
     QRCode.toCanvas(canvas, text, {
       width: 720,
       margin: 1,
-      color: {
-        dark: '#000000',
-        light: CARD_BG,
-      },
+      color: { dark: '#000000', light: CARD_BG },
       errorCorrectionLevel: 'H',
     }, (error) => {
       if (error) {
@@ -45,14 +44,14 @@ const createQrDataUrl = (text: string) =>
     });
   });
 
-const drawRoundRect = (
+function roundRect(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   width: number,
   height: number,
   radius: number,
-) => {
+) {
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
   ctx.lineTo(x + width - radius, y);
@@ -64,31 +63,63 @@ const drawRoundRect = (
   ctx.lineTo(x, y + radius);
   ctx.quadraticCurveTo(x, y, x + radius, y);
   ctx.closePath();
-};
+}
 
-const drawCenteredText = (
+function drawCenteredText(
   ctx: CanvasRenderingContext2D,
   text: string,
   x: number,
   y: number,
   maxWidth: number,
-) => {
+) {
   ctx.textAlign = 'center';
   ctx.fillText(text, x, y, maxWidth);
-};
+}
+
+function fitFont(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxSize: number,
+  minSize: number,
+  weight = 900,
+) {
+  let size = maxSize;
+  do {
+    ctx.font = `${weight} ${size}px Arial`;
+    if (ctx.measureText(text).width <= maxWidth) return size;
+    size -= 2;
+  } while (size >= minSize);
+  return minSize;
+}
+
+function drawCornerBrackets(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const len = 58;
+  ctx.strokeStyle = ORANGE;
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'square';
+  [
+    [[x, y + len], [x, y], [x + len, y]],
+    [[x + w - len, y], [x + w, y], [x + w, y + len]],
+    [[x, y + h - len], [x, y + h], [x + len, y + h]],
+    [[x + w - len, y + h], [x + w, y + h], [x + w, y + h - len]],
+  ].forEach(([a, b, c]) => {
+    ctx.beginPath();
+    ctx.moveTo(a[0], a[1]);
+    ctx.lineTo(b[0], b[1]);
+    ctx.lineTo(c[0], c[1]);
+    ctx.stroke();
+  });
+}
 
 export default function QRStandee({ table, className }: QRStandeeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [downloading, setDownloading] = useState(false);
   const tenant = useAuthStore((state) => state.user?.tenant);
+  const cafeName = tenant?.name || 'Your Cafe';
 
-  const qrUrl = useMemo(() => {
-    if (table.qr_url || table.qr_code_url) return table.qr_url || table.qr_code_url || '';
-    const frontendUrl = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
-    const slug = tenant?.slug || 'restaurant';
-    return table.identifier ? `${frontendUrl}/order/${slug}/${table.identifier}` : '';
-  }, [table.identifier, table.qr_code_url, table.qr_url, tenant?.slug]);
+  const qrUrl = useMemo(() => getCustomerOrderUrl(table, tenant), [table, tenant]);
 
   useEffect(() => {
     let active = true;
@@ -97,12 +128,14 @@ export default function QRStandee({ table, className }: QRStandeeProps) {
       return;
     }
 
-    createQrDataUrl(qrUrl).then((url) => {
-      if (active) setQrDataUrl(url);
-    }).catch((error) => {
-      console.error('QR standee generation error:', error);
-      if (active) setQrDataUrl('');
-    });
+    createQrDataUrl(qrUrl)
+      .then((url) => {
+        if (active) setQrDataUrl(url);
+      })
+      .catch((error) => {
+        console.error('QR standee generation error:', error);
+        if (active) setQrDataUrl('');
+      });
 
     return () => {
       active = false;
@@ -114,9 +147,8 @@ export default function QRStandee({ table, className }: QRStandeeProps) {
     setDownloading(true);
 
     try {
-      const [logo, cup, pizza, burger, cupBeans, scan, menu, placeOrder, arrow, heart, logdine, qr] =
+      const [cup, pizza, burger, cupBeans, scan, menu, placeOrder, arrow, heart, logdine, qr] =
         await Promise.all([
-          loadImage(getImageUrl('logo.png')),
           loadImage(getImageUrl('cup.png')),
           loadImage(getImageUrl('pizza.png')),
           loadImage(getImageUrl('burger.png')),
@@ -131,8 +163,8 @@ export default function QRStandee({ table, className }: QRStandeeProps) {
         ]);
 
       const canvas = canvasRef.current || document.createElement('canvas');
-      canvas.width = 1200;
-      canvas.height = 1800;
+      canvas.width = 900;
+      canvas.height = 1350;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
@@ -140,126 +172,99 @@ export default function QRStandee({ table, className }: QRStandeeProps) {
       ctx.fillStyle = '#1b120d';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const card = { x: 120, y: 70, w: 960, h: 1660, r: 54 };
-      drawRoundRect(ctx, card.x, card.y, card.w, card.h, card.r);
+      roundRect(ctx, 38, 24, 824, 1302, 48);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+
+      roundRect(ctx, 58, 44, 784, 1192, 28);
       ctx.fillStyle = CARD_BG;
       ctx.fill();
-      ctx.lineWidth = 22;
-      ctx.strokeStyle = '#000';
-      ctx.stroke();
 
-      ctx.drawImage(cup, card.x + 10, card.y + 28, 210, 190);
-      ctx.drawImage(pizza, card.x + card.w - 260, card.y + 25, 245, 225);
-      ctx.drawImage(burger, card.x + 8, card.y + 645, 190, 150);
-      ctx.drawImage(cupBeans, card.x + card.w - 205, card.y + 645, 180, 155);
+      ctx.globalAlpha = 0.72;
+      ctx.drawImage(cup, 72, 56, 150, 132);
+      ctx.drawImage(pizza, 690, 52, 138, 132);
+      ctx.drawImage(burger, 70, 650, 148, 108);
+      ctx.drawImage(cupBeans, 682, 650, 138, 112);
+      ctx.globalAlpha = 1;
 
-      ctx.drawImage(logo, card.x + 300, card.y + 35, 360, 150);
-
-      const scanBox = { x: card.x + 90, y: card.y + 230, w: card.w - 180, h: 210 };
-      ctx.strokeStyle = ORANGE;
-      ctx.lineWidth = 8;
-      const corner = 80;
-      const r = 18;
-      [
-        [scanBox.x, scanBox.y, corner, corner, 'tl'],
-        [scanBox.x + scanBox.w - corner, scanBox.y, corner, corner, 'tr'],
-        [scanBox.x, scanBox.y + scanBox.h - corner, corner, corner, 'bl'],
-        [scanBox.x + scanBox.w - corner, scanBox.y + scanBox.h - corner, corner, corner, 'br'],
-      ].forEach(([x, y, w, h, pos]) => {
-        ctx.beginPath();
-        if (pos === 'tl') {
-          ctx.moveTo(Number(x) + r, Number(y));
-          ctx.lineTo(Number(x) + Number(w), Number(y));
-          ctx.moveTo(Number(x), Number(y) + r);
-          ctx.lineTo(Number(x), Number(y) + Number(h));
-        } else if (pos === 'tr') {
-          ctx.moveTo(Number(x), Number(y));
-          ctx.lineTo(Number(x) + Number(w) - r, Number(y));
-          ctx.moveTo(Number(x) + Number(w), Number(y) + r);
-          ctx.lineTo(Number(x) + Number(w), Number(y) + Number(h));
-        } else if (pos === 'bl') {
-          ctx.moveTo(Number(x), Number(y));
-          ctx.lineTo(Number(x), Number(y) + Number(h) - r);
-          ctx.moveTo(Number(x) + r, Number(y) + Number(h));
-          ctx.lineTo(Number(x) + Number(w), Number(y) + Number(h));
-        } else {
-          ctx.moveTo(Number(x) + Number(w), Number(y));
-          ctx.lineTo(Number(x) + Number(w), Number(y) + Number(h) - r);
-          ctx.moveTo(Number(x), Number(y) + Number(h));
-          ctx.lineTo(Number(x) + Number(w) - r, Number(y) + Number(h));
-        }
-        ctx.stroke();
-      });
-
-      ctx.font = '900 92px Arial';
-      ctx.fillStyle = '#111';
-      ctx.textAlign = 'center';
-      ctx.fillText('SCAN TO ', card.x + card.w / 2 - 95, scanBox.y + 118);
+      const brand = cafeName.trim().toUpperCase();
+      ctx.fillStyle = INK;
+      const brandSize = fitFont(ctx, brand, 480, 52, 28, 900);
+      ctx.font = `900 ${brandSize}px Arial`;
+      drawCenteredText(ctx, brand, 450, 138, 500);
       ctx.fillStyle = ORANGE;
-      ctx.fillText('ORDER', card.x + card.w / 2 + 245, scanBox.y + 118);
+      ctx.fillRect(342, 154, 216, 5);
+
+      const scanBox = { x: 110, y: 220, w: 680, h: 166 };
+      drawCornerBrackets(ctx, scanBox.x, scanBox.y, scanBox.w, scanBox.h);
+
+      ctx.textAlign = 'center';
+      ctx.font = '900 74px Arial';
+      ctx.fillStyle = INK;
+      ctx.fillText('SCAN TO', 386, 318);
+      ctx.fillStyle = ORANGE;
+      ctx.fillText('ORDER', 620, 318);
 
       ctx.fillStyle = CARD_BG;
-      ctx.fillRect(scanBox.x + 55, scanBox.y + 160, 670, 50);
-      ctx.font = '500 26px Arial';
+      ctx.fillRect(184, 348, 532, 32);
+      ctx.font = '500 19px Arial';
       ctx.fillStyle = '#222';
-      drawCenteredText(
-        ctx,
-        'DIGITAL MENU  •  FAST SERVICE  •  CONTACTLESS EXPERIENCE',
-        card.x + card.w / 2,
-        scanBox.y + 194,
-        720,
-      );
+      drawCenteredText(ctx, 'DIGITAL MENU  •  FAST SERVICE  •  CONTACTLESS EXPERIENCE', 450, 372, 570);
 
-      ctx.font = '800 38px Arial';
-      ctx.fillStyle = '#111';
-      drawCenteredText(ctx, `TABLE ${table.table_number}`, card.x + card.w / 2, card.y + 510, 760);
+      ctx.font = '900 30px Arial';
+      ctx.fillStyle = INK;
+      drawCenteredText(ctx, `TABLE ${table.table_number}`, 450, 434, 650);
 
-      const qrBox = { x: card.x + 230, y: card.y + 555, w: 500, h: 500 };
-      drawRoundRect(ctx, qrBox.x, qrBox.y, qrBox.w, qrBox.h, 48);
+      const qrBox = { x: 260, y: 470, w: 380, h: 380 };
+      roundRect(ctx, qrBox.x, qrBox.y, qrBox.w, qrBox.h, 32);
       ctx.fillStyle = CARD_BG;
       ctx.fill();
-      ctx.lineWidth = 18;
-      ctx.strokeStyle = '#111';
+      ctx.lineWidth = 12;
+      ctx.strokeStyle = INK;
       ctx.stroke();
-      ctx.drawImage(qr, qrBox.x + 40, qrBox.y + 40, qrBox.w - 80, qrBox.h - 80);
+      ctx.drawImage(qr, qrBox.x + 28, qrBox.y + 28, qrBox.w - 56, qrBox.h - 56);
 
-      ctx.strokeStyle = '#ccc';
+      ctx.strokeStyle = '#d8d2c8';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(card.x + 40, card.y + 1120);
-      ctx.lineTo(card.x + card.w - 40, card.y + 1120);
+      ctx.moveTo(124, 900);
+      ctx.lineTo(776, 900);
       ctx.stroke();
 
-      const stepY = card.y + 1180;
-      const stepXs = [card.x + 220, card.x + 480, card.x + 740];
+      const stepY = 940;
+      const stepXs = [234, 450, 666];
       const stepImgs = [scan, menu, placeOrder];
-      const stepTexts = ['SCAN QR CODE', 'BROWSE MENU', 'PLACE ORDER'];
-      ctx.font = '700 27px Arial';
-      ctx.fillStyle = '#111';
+      const stepLabels = ['SCAN QR CODE', 'BROWSE MENU', 'PLACE ORDER'];
+      ctx.font = '800 19px Arial';
+      ctx.fillStyle = INK;
       stepXs.forEach((x, index) => {
-        ctx.drawImage(stepImgs[index], x - 50, stepY, 100, 100);
-        drawCenteredText(ctx, stepTexts[index], x, stepY + 150, 230);
-        if (index < 2) ctx.drawImage(arrow, x + 115, stepY + 30, 50, 42);
+        ctx.drawImage(stepImgs[index], x - 39, stepY, 78, 78);
+        drawCenteredText(ctx, stepLabels[index], x, stepY + 120, 172);
+        if (index < 2) ctx.drawImage(arrow, x + 86, stepY + 28, 34, 28);
       });
 
-      const tagY = card.y + 1435;
-      ctx.font = '600 27px Arial';
-      ctx.fillStyle = '#111';
-      const tagParts = ['GOOD FOOD', 'GOOD MOOD', 'GREAT EXPERIENCE'];
-      let cursor = card.x + 165;
-      tagParts.forEach((part, index) => {
-        ctx.drawImage(heart, cursor - 42, tagY - 25, 24, 24);
-        ctx.fillText(part, cursor, tagY);
-        cursor += index === 2 ? 0 : 255;
+      const tagY = 1128;
+      const tagParts = [
+        { text: 'GOOD FOOD', x: 225 },
+        { text: 'GOOD MOOD', x: 450 },
+        { text: 'GREAT EXPERIENCE', x: 682 },
+      ];
+      ctx.font = '800 18px Arial';
+      ctx.fillStyle = INK;
+      tagParts.forEach(({ text, x }) => {
+        ctx.drawImage(heart, x - 72, tagY - 18, 18, 18);
+        drawCenteredText(ctx, text, x, tagY, 170);
       });
-      ctx.drawImage(heart, card.x + card.w - 112, tagY - 25, 24, 24);
+      ctx.drawImage(heart, 790, tagY - 18, 18, 18);
 
       ctx.fillStyle = '#000';
-      ctx.fillRect(card.x + 11, card.y + card.h - 130, card.w - 22, 118);
-      ctx.font = '400 38px Arial';
+      roundRect(ctx, 58, 1208, 784, 108, 0);
+      ctx.fill();
+      ctx.font = '400 27px Arial';
       ctx.fillStyle = '#fff';
-      ctx.fillText('Powered By', card.x + 360, card.y + card.h - 58);
-      ctx.drawImage(logdine, card.x + 575, card.y + card.h - 105, 250, 72);
+      ctx.textAlign = 'right';
+      ctx.fillText('Powered By', 418, 1272);
+      ctx.drawImage(logdine, 442, 1234, 214, 62);
 
       const link = document.createElement('a');
       link.href = canvas.toDataURL('image/png');
@@ -272,30 +277,33 @@ export default function QRStandee({ table, className }: QRStandeeProps) {
 
   return (
     <div className={className}>
-      <div className="relative mx-auto w-full max-w-[360px] overflow-hidden rounded-[22px] border-[6px] border-black bg-[#f0ede8] pt-5 text-center shadow-xl">
-        <img src={getImageUrl('cup.png')} alt="" className="pointer-events-none absolute left-0 top-4 w-20 opacity-80" />
-        <img src={getImageUrl('pizza.png')} alt="" className="pointer-events-none absolute right-0 top-3 w-24 opacity-80" />
-        <img src={getImageUrl('burger.png')} alt="" className="pointer-events-none absolute bottom-40 left-0 w-20 opacity-80" />
-        <img src={getImageUrl('cup-beans.png')} alt="" className="pointer-events-none absolute bottom-40 right-0 w-20 opacity-80" />
+      <div className="relative mx-auto aspect-[2/3] w-full max-w-[360px] overflow-hidden rounded-[22px] border-[6px] border-black bg-[#f0ede8] pt-5 text-center shadow-xl">
+        <img src={getImageUrl('cup.png')} alt="" className="pointer-events-none absolute left-0 top-3 w-20 opacity-70" />
+        <img src={getImageUrl('pizza.png')} alt="" className="pointer-events-none absolute right-0 top-2 w-24 opacity-70" />
+        <img src={getImageUrl('burger.png')} alt="" className="pointer-events-none absolute bottom-[29%] left-0 w-20 opacity-70" />
+        <img src={getImageUrl('cup-beans.png')} alt="" className="pointer-events-none absolute bottom-[29%] right-0 w-20 opacity-70" />
 
-        <img src={getImageUrl('logo.png')} alt="Restaurant logo" className="relative z-10 mx-auto w-36 -rotate-1" />
+        <div className="relative z-10 mx-auto mt-1 max-w-[78%]">
+          <p className="truncate text-xl font-black uppercase tracking-normal text-black">{cafeName}</p>
+          <div className="mx-auto mt-1 h-0.5 w-24 bg-[#d95b28]" />
+        </div>
 
-        <div className="relative mx-4 mt-4 py-7">
+        <div className="relative mx-4 mt-6 py-7">
           <span className="absolute left-0 top-0 size-7 rounded-tl-lg border-l-[3px] border-t-[3px] border-[#d95b28]" />
           <span className="absolute right-0 top-0 size-7 rounded-tr-lg border-r-[3px] border-t-[3px] border-[#d95b28]" />
           <span className="absolute bottom-0 left-0 size-7 rounded-bl-lg border-b-[3px] border-l-[3px] border-[#d95b28]" />
           <span className="absolute bottom-0 right-0 size-7 rounded-br-lg border-b-[3px] border-r-[3px] border-[#d95b28]" />
-          <p className="text-[34px] font-black leading-none tracking-normal text-black">
+          <p className="text-[33px] font-black leading-none tracking-normal text-black">
             SCAN TO <span className="text-[#d95b28]">ORDER</span>
           </p>
-          <p className="absolute -bottom-2 left-3 bg-[#f0ede8] px-1 text-[9px] font-medium tracking-normal text-[#222]">
+          <p className="absolute -bottom-2 left-1/2 w-[88%] -translate-x-1/2 bg-[#f0ede8] px-1 text-[8px] font-medium tracking-normal text-[#222]">
             DIGITAL MENU <span className="text-[#d95b28]">•</span> FAST SERVICE <span className="text-[#d95b28]">•</span> CONTACTLESS EXPERIENCE
           </p>
         </div>
 
         <p className="mt-6 text-sm font-black uppercase tracking-normal text-black">Table {table.table_number}</p>
 
-        <div className="mx-auto my-5 grid aspect-square w-[62%] place-items-center rounded-[24px] border-[8px] border-[#111] bg-[#f0ede8]">
+        <div className="mx-auto my-4 grid aspect-square w-[58%] place-items-center rounded-[24px] border-[7px] border-[#111] bg-[#f0ede8]">
           {qrDataUrl ? (
             <img src={qrDataUrl} alt={`QR code for table ${table.table_number}`} className="size-[88%]" />
           ) : (
@@ -303,34 +311,30 @@ export default function QRStandee({ table, className }: QRStandeeProps) {
           )}
         </div>
 
-        <div className="mx-3 grid grid-cols-3 gap-2 border-t border-[#ccc] pt-4 text-[10px] font-semibold text-black">
+        <div className="mx-3 grid grid-cols-3 gap-2 border-t border-[#ccc] pt-4 text-[9px] font-semibold text-black">
           <div className="relative">
-            <img src={getImageUrl('scan.png')} alt="" className="mx-auto mb-2 size-11 object-contain" />
+            <img src={getImageUrl('scan.png')} alt="" className="mx-auto mb-2 size-10 object-contain" />
             SCAN QR CODE
             <img src={getImageUrl('arrow.png')} alt="" className="absolute -right-3 top-4 w-5" />
           </div>
           <div className="relative">
-            <img src={getImageUrl('menu.png')} alt="" className="mx-auto mb-2 size-11 object-contain" />
+            <img src={getImageUrl('menu.png')} alt="" className="mx-auto mb-2 size-10 object-contain" />
             BROWSE MENU
             <img src={getImageUrl('arrow.png')} alt="" className="absolute -right-3 top-4 w-5" />
           </div>
           <div>
-            <img src={getImageUrl('place-order.png')} alt="" className="mx-auto mb-2 size-11 object-contain" />
+            <img src={getImageUrl('place-order.png')} alt="" className="mx-auto mb-2 size-10 object-contain" />
             PLACE ORDER
           </div>
         </div>
 
-        <div className="mx-auto my-4 flex items-center justify-center gap-1 text-[9px] font-semibold text-black">
-          <img src={getImageUrl('heart.png')} alt="" className="size-3" />
-          GOOD FOOD
-          <img src={getImageUrl('heart.png')} alt="" className="size-3" />
-          GOOD MOOD
-          <img src={getImageUrl('heart.png')} alt="" className="size-3" />
-          GREAT EXPERIENCE
-          <img src={getImageUrl('heart.png')} alt="" className="size-3" />
+        <div className="mx-auto my-3 grid w-[86%] grid-cols-3 items-center gap-1 text-[8px] font-semibold text-black">
+          <span><img src={getImageUrl('heart.png')} alt="" className="mr-1 inline size-2.5" />GOOD FOOD</span>
+          <span><img src={getImageUrl('heart.png')} alt="" className="mr-1 inline size-2.5" />GOOD MOOD</span>
+          <span><img src={getImageUrl('heart.png')} alt="" className="mr-1 inline size-2.5" />GREAT EXPERIENCE</span>
         </div>
 
-        <div className="flex items-center justify-center gap-3 bg-black px-4 py-3 text-white">
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-3 bg-black px-4 py-3 text-white">
           <span className="text-xs font-light uppercase">Powered By</span>
           <img src={getImageUrl('logdine.png')} alt="LogDine" className="h-6 w-auto" />
         </div>

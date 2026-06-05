@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import { QrCode } from 'lucide-react';
 import type { RestaurantTable } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
+import { getCustomerOrderUrl } from '@/lib/customerOrderUrl';
 
 interface QRCodeDisplayProps {
   table: RestaurantTable;
@@ -24,11 +25,7 @@ export default function QRCodeDisplay({
   useEffect(() => {
     // Build the QR URL from table identifier
     if (table.identifier && canvasRef.current) {
-      const frontendUrl = import.meta.env.VITE_FRONTEND_URL || 'https://tablescan-order.vercel.app';
-      const tenant = authStore.user?.tenant;
-      const slug = tenant?.slug || 'restaurant';
-      
-      const url = `${frontendUrl}/order/${slug}/${table.identifier}`;
+      const url = getCustomerOrderUrl(table, authStore.user?.tenant);
       
       // Generate QR code on canvas
       QRCode.toCanvas(canvasRef.current, url, {
