@@ -65,6 +65,21 @@ export function useUpdateTable() {
   });
 }
 
+export function useDeleteTable() {
+  const tenantId = useTenantId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tableId: string) => restaurantService.deleteTable(requireTenantId(tenantId), tableId),
+    onSuccess: () => {
+      if (tenantId) qc.invalidateQueries({ queryKey: qk.tables(tenantId) });
+      toast.success('Table deleted');
+    },
+    onError: () => {
+      toast.error('Failed to delete table');
+    },
+  });
+}
+
 export function useCreateBulkTables() {
   const tenantId = useTenantId();
   const qc = useQueryClient();

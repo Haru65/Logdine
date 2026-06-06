@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, ScanLine, Table2, Users } from 'lucide-react';
+import { Clock, ScanLine, Table2, Trash2, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useTables, useUpdateTable } from '@/hooks/useRestaurant';
+import { useDeleteTable, useTables, useUpdateTable } from '@/hooks/useRestaurant';
 import { cn, timeAgo } from '@/lib/utils';
 import BulkAddTablesDialog from '@/components/BulkAddTablesDialog';
 import BulkQRDownloadButton from '@/components/BulkQRDownloadButton';
@@ -140,6 +140,7 @@ function TableCard({ table, onClick }: { table: RestaurantTable; onClick: () => 
 
 function TableEditor({ table, onClose }: { table: RestaurantTable; onClose: () => void }) {
   const update = useUpdateTable();
+  const deleteTable = useDeleteTable();
   const [number, setNumber] = useState(table.table_number);
   const [capacity, setCapacity] = useState(String(table.capacity));
   const [status, setStatus] = useState<TableStatus>(table.status);
@@ -194,6 +195,7 @@ function TableEditor({ table, onClose }: { table: RestaurantTable; onClose: () =
           <Button
             className="flex-1"
             loading={update.isPending}
+            disabled={deleteTable.isPending}
             onClick={() => {
               update.mutate(
                 {
@@ -210,6 +212,22 @@ function TableEditor({ table, onClose }: { table: RestaurantTable; onClose: () =
             Cancel
           </Button>
         </div>
+
+        <Button
+          type="button"
+          variant="destructive"
+          className="w-full gap-1.5"
+          loading={deleteTable.isPending}
+          disabled={update.isPending}
+          onClick={() => {
+            const confirmed = window.confirm(`Delete table ${table.table_number}? This will remove it from table management.`);
+            if (!confirmed) return;
+
+            deleteTable.mutate(table.id, { onSuccess: onClose });
+          }}
+        >
+          <Trash2 className="size-4" /> Delete Table
+        </Button>
       </div>
     </>
   );

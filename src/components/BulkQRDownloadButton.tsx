@@ -2,15 +2,13 @@ import { useState } from 'react';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { downloadQrStandeeImage } from '@/components/QRStandee';
+import { downloadQrStandeePdf } from '@/components/QRStandee';
 import { useAuthStore } from '@/store/auth.store';
 import type { RestaurantTable } from '@/types';
 
 interface BulkQRDownloadButtonProps {
   tables?: RestaurantTable[];
 }
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const tableSortValue = (table: RestaurantTable) => table.table_number || table.name || table.identifier || '';
 
@@ -34,11 +32,12 @@ export default function BulkQRDownloadButton({ tables = [] }: BulkQRDownloadButt
 
     setDownloading(true);
     try {
-      for (const table of downloadableTables) {
-        await downloadQrStandeeImage(table, tenant);
-        await wait(180);
+      const downloaded = await downloadQrStandeePdf(downloadableTables, tenant);
+      if (!downloaded) {
+        toast.error('No table QR codes available to download. Add tables or regenerate QR codes first.');
+        return;
       }
-      toast.success(`Downloaded ${downloadableTables.length} QR standee${downloadableTables.length === 1 ? '' : 's'}`);
+      toast.success(`Downloaded ${downloadableTables.length} QR standee${downloadableTables.length === 1 ? '' : 's'} as PDF`);
     } catch (error) {
       console.error('Bulk QR download failed:', error);
       toast.error('Bulk QR download failed');
