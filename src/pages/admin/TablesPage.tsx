@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, ScanLine, Table2, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,9 +30,19 @@ const statusDot: Record<TableStatus, string> = {
   maintenance: 'bg-slate-400',
 };
 
+const tableSortValue = (table: RestaurantTable) => table.table_number || table.name || table.identifier || '';
+
+function compareTablesAsc(a: RestaurantTable, b: RestaurantTable) {
+  return tableSortValue(a).localeCompare(tableSortValue(b), undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
+}
+
 export default function TablesPage() {
   const { data: tables, isLoading } = useTables();
   const [selected, setSelected] = useState<RestaurantTable | null>(null);
+  const sortedTables = useMemo(() => [...(tables ?? [])].sort(compareTablesAsc), [tables]);
 
   return (
     <div className="container py-6 lg:py-8">
@@ -47,7 +57,7 @@ export default function TablesPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <BulkQRDownloadButton tables={tables ?? []} />
+          <BulkQRDownloadButton tables={sortedTables} />
           <BulkAddTablesDialog />
         </div>
       </div>
@@ -58,7 +68,7 @@ export default function TablesPage() {
             <Skeleton key={i} className="aspect-[4/5] rounded-2xl" />
           ))}
         </div>
-      ) : !tables?.length ? (
+      ) : !sortedTables.length ? (
         <Card>
           <CardContent className="grid place-items-center gap-3 p-16 text-center">
             <Table2 className="size-12 text-muted-foreground/30" />
@@ -66,14 +76,15 @@ export default function TablesPage() {
             <p className="max-w-xs text-sm text-muted-foreground">
               Add tables to start tracking occupancy and generate customer QR codes.
             </p>
-            <div className="mt-2">
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
+              <BulkQRDownloadButton tables={sortedTables} />
               <BulkAddTablesDialog />
             </div>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {tables.map((t) => (
+          {sortedTables.map((t) => (
             <TableCard key={t.id} table={t} onClick={() => setSelected(t)} />
           ))}
         </div>
@@ -168,7 +179,7 @@ function TableEditor({ table, onClose }: { table: RestaurantTable; onClose: () =
         <Card>
           <CardContent className="grid place-items-center gap-3 p-6">
             <QRStandee table={table} className="w-full" />
-            <p className="text-xs text-muted-foreground">QR standee · scan to order</p>
+            <p className="text-xs text-muted-foreground">QR standee - scan to order</p>
             <div className="text-center">
               <p className="text-sm font-semibold">{table.qr_scan_count ?? 0} total scans</p>
               <p className="mt-0.5 flex items-center justify-center gap-1 text-xs text-muted-foreground">
