@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { Download, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth.store';
-import type { RestaurantTable } from '@/types';
+import type { RestaurantTable, Tenant } from '@/types';
 import { getCustomerOrderUrl } from '@/lib/customerOrderUrl';
 
 const ASSET_BASE = '/qr-design/images';
@@ -110,6 +110,137 @@ function drawCornerBrackets(ctx: CanvasRenderingContext2D, x: number, y: number,
     ctx.lineTo(c[0], c[1]);
     ctx.stroke();
   });
+}
+
+export async function downloadQrStandeeImage(table: RestaurantTable, tenant?: Tenant) {
+  const cafeName = tenant?.name || 'Your Cafe';
+  const qrUrl = getCustomerOrderUrl(table, tenant);
+  if (!qrUrl) return;
+
+  const qrDataUrl = await createQrDataUrl(qrUrl);
+  const [cup, pizza, burger, cupBeans, scan, menu, placeOrder, arrow, heart, logdine, qr] =
+    await Promise.all([
+      loadImage(getImageUrl('cup.png')),
+      loadImage(getImageUrl('pizza.png')),
+      loadImage(getImageUrl('burger.png')),
+      loadImage(getImageUrl('cup-beans.png')),
+      loadImage(getImageUrl('scan.png')),
+      loadImage(getImageUrl('menu.png')),
+      loadImage(getImageUrl('place-order.png')),
+      loadImage(getImageUrl('arrow.png')),
+      loadImage(getImageUrl('heart.png')),
+      loadImage(getImageUrl('logdine.png')),
+      loadImage(qrDataUrl),
+    ]);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 900;
+  canvas.height = 1350;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#1b120d';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  roundRect(ctx, 38, 24, 824, 1302, 48);
+  ctx.fillStyle = '#000';
+  ctx.fill();
+
+  roundRect(ctx, 58, 44, 784, 1192, 28);
+  ctx.fillStyle = CARD_BG;
+  ctx.fill();
+
+  ctx.globalAlpha = 0.72;
+  ctx.drawImage(cup, 72, 56, 150, 132);
+  ctx.drawImage(pizza, 690, 52, 138, 132);
+  ctx.drawImage(burger, 70, 650, 148, 108);
+  ctx.drawImage(cupBeans, 682, 650, 138, 112);
+  ctx.globalAlpha = 1;
+
+  const brand = cafeName.trim().toUpperCase();
+  ctx.fillStyle = INK;
+  const brandSize = fitFont(ctx, brand, 480, 52, 28, 900);
+  ctx.font = `900 ${brandSize}px Arial`;
+  drawCenteredText(ctx, brand, 450, 138, 500);
+  ctx.fillStyle = ORANGE;
+  ctx.fillRect(342, 154, 216, 5);
+
+  const scanBox = { x: 110, y: 220, w: 680, h: 166 };
+  drawCornerBrackets(ctx, scanBox.x, scanBox.y, scanBox.w, scanBox.h);
+
+  ctx.textAlign = 'center';
+  ctx.font = '900 74px Arial';
+  ctx.fillStyle = INK;
+  ctx.fillText('SCAN TO', 386, 318);
+  ctx.fillStyle = ORANGE;
+  ctx.fillText('ORDER', 620, 318);
+
+  ctx.fillStyle = CARD_BG;
+  ctx.fillRect(184, 348, 532, 32);
+  ctx.font = '500 19px Arial';
+  ctx.fillStyle = '#222';
+  drawCenteredText(ctx, 'DIGITAL MENU  •  FAST SERVICE  •  CONTACTLESS EXPERIENCE', 450, 372, 570);
+
+  ctx.font = '900 30px Arial';
+  ctx.fillStyle = INK;
+  drawCenteredText(ctx, `TABLE ${table.table_number}`, 450, 434, 650);
+
+  const qrBox = { x: 260, y: 470, w: 380, h: 380 };
+  roundRect(ctx, qrBox.x, qrBox.y, qrBox.w, qrBox.h, 32);
+  ctx.fillStyle = CARD_BG;
+  ctx.fill();
+  ctx.lineWidth = 12;
+  ctx.strokeStyle = INK;
+  ctx.stroke();
+  ctx.drawImage(qr, qrBox.x + 28, qrBox.y + 28, qrBox.w - 56, qrBox.h - 56);
+
+  ctx.strokeStyle = '#d8d2c8';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(124, 900);
+  ctx.lineTo(776, 900);
+  ctx.stroke();
+
+  const stepY = 940;
+  const stepXs = [234, 450, 666];
+  const stepImgs = [scan, menu, placeOrder];
+  const stepLabels = ['SCAN QR CODE', 'BROWSE MENU', 'PLACE ORDER'];
+  ctx.font = '800 19px Arial';
+  ctx.fillStyle = INK;
+  stepXs.forEach((x, index) => {
+    ctx.drawImage(stepImgs[index], x - 39, stepY, 78, 78);
+    drawCenteredText(ctx, stepLabels[index], x, stepY + 120, 172);
+    if (index < 2) ctx.drawImage(arrow, x + 86, stepY + 28, 34, 28);
+  });
+
+  const tagY = 1128;
+  const tagParts = [
+    { text: 'GOOD FOOD', x: 225 },
+    { text: 'GOOD MOOD', x: 450 },
+    { text: 'GREAT EXPERIENCE', x: 682 },
+  ];
+  ctx.font = '800 18px Arial';
+  ctx.fillStyle = INK;
+  tagParts.forEach(({ text, x }) => {
+    ctx.drawImage(heart, x - 72, tagY - 18, 18, 18);
+    drawCenteredText(ctx, text, x, tagY, 170);
+  });
+  ctx.drawImage(heart, 790, tagY - 18, 18, 18);
+
+  ctx.fillStyle = '#000';
+  roundRect(ctx, 58, 1208, 784, 108, 0);
+  ctx.fill();
+  ctx.font = '400 27px Arial';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'right';
+  ctx.fillText('Powered By', 418, 1272);
+  ctx.drawImage(logdine, 442, 1234, 214, 62);
+
+  const link = document.createElement('a');
+  link.href = canvas.toDataURL('image/png');
+  link.download = `table-${table.table_number}-qr-standee.png`;
+  link.click();
 }
 
 export default function QRStandee({ table, className }: QRStandeeProps) {

@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { useTables, useUpdateTable } from '@/hooks/useRestaurant';
 import { cn, timeAgo } from '@/lib/utils';
 import BulkAddTablesDialog from '@/components/BulkAddTablesDialog';
+import BulkQRDownloadButton from '@/components/BulkQRDownloadButton';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import QRStandee from '@/components/QRStandee';
 import type { RestaurantTable, TableStatus } from '@/types';
@@ -45,7 +46,10 @@ export default function TablesPage() {
             Create tables, generate QR codes, and track live status.
           </p>
         </div>
-        <BulkAddTablesDialog />
+        <div className="flex flex-wrap gap-2">
+          <BulkQRDownloadButton tables={tables ?? []} />
+          <BulkAddTablesDialog />
+        </div>
       </div>
 
       {isLoading ? (
