@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -6,7 +6,9 @@ import {
   Banknote,
   ChefHat,
   Clock,
+  CreditCard,
   Flame,
+  Loader2,
   Minus,
   Plus,
   RefreshCw,
@@ -31,6 +33,7 @@ import { cn, formatCurrency, timeAgo } from '@/lib/utils';
 import type { MenuAddon, MenuItem, MenuVariant, Order } from '@/types';
 
 type DietFilter = 'all' | 'veg' | 'non-veg';
+type CheckoutPaymentMethod = 'cash' | 'paytm';
 
 const activeOrderStatuses = new Set(['pending', 'confirmed', 'preparing', 'ready']);
 
@@ -42,6 +45,7 @@ export default function PublicMenuPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [diet, setDiet] = useState<DietFilter>('all');
   const [cartOpen, setCartOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('cash');
 
   const menuQuery = useQuery({
     queryKey: qk.publicMenu(slug, table),
@@ -60,6 +64,24 @@ export default function PublicMenuPage() {
   const subtotal = useCartStore(selectSubtotal);
   const taxes = useMemo(() => getTaxes(subtotal, menuQuery.data?.taxConfig), [subtotal, menuQuery.data?.taxConfig]);
   const total = subtotal + taxes.reduce((sum, tax) => sum + tax.amount, 0);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    const orderId = params.get('orderId');
+    if (!payment || !orderId) return;
+
+    if (payment === 'success' || payment === 'already-processed') {
+      cart.clear();
+      setCartOpen(false);
+      toast.success(payment === 'success' ? 'Payment successful. Your order is confirmed.' : 'Payment already processed.');
+      void queryClient.invalidateQueries({ queryKey: ['public', 'table-orders', slug, table] });
+    } else if (payment === 'failed') {
+      toast.error('Payment failed. Please try again or pay at the counter.');
+    }
+
+    window.history.replaceState({}, '', window.location.pathname);
+  }, [cart, queryClient, slug, table]);
 
   const activeOrder = useMemo(() => {
     return ordersQuery.data?.find((order) => activeOrderStatuses.has(order.status)) ?? null;
@@ -80,10 +102,32 @@ export default function PublicMenuPage() {
     });
   }, [activeCat, diet, menuQuery.data?.items, search]);
 
+  const submitPaytmForm = (payment: Awaited<ReturnType<typeof publicOrderService.createPaytmTransaction>>) => {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = payment.paymentUrl;
+    form.target = '_self';
+
+    Object.entries({
+      mid: payment.merchantId,
+      orderId: payment.orderId,
+      txnToken: payment.txnToken,
+    }).forEach(([name, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = String(value);
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+  };
+
   const createOrder = useMutation({
-    mutationFn: () =>
-      publicOrderService.createOrder(slug, table, {
-        paymentMethod: 'cash',
+    mutationFn: async (method: CheckoutPaymentMethod) => {
+      const createdOrder = await publicOrderService.createOrder(slug, table, {
+        paymentMethod: method === 'paytm' ? 'online' : 'cash',
         notes: cart.notes,
         items: cart.items.map((line) => ({
           menu_item_id: line.menu_item_id,
@@ -102,14 +146,31 @@ export default function PublicMenuPage() {
           })),
           notes: line.notes,
         })),
-      }),
-    onSuccess: async () => {
+      });
+
+      if (method === 'paytm') {
+        const orderAmount = Number((createdOrder as any).total ?? (createdOrder as any).totalAmount ?? total);
+        const payment = await publicOrderService.createPaytmTransaction({
+          orderId: createdOrder.id,
+          amount: orderAmount,
+          restaurantSlug: slug,
+        });
+        submitPaytmForm(payment);
+      }
+
+      return { method };
+    },
+    onSuccess: async ({ method }) => {
+      if (method === 'paytm') {
+        toast.success('Opening Paytm payment gateway...');
+        return;
+      }
       cart.clear();
       setCartOpen(false);
       toast.success('Order placed. The kitchen has received it.');
       await queryClient.invalidateQueries({ queryKey: ['public', 'table-orders', slug, table] });
     },
-    onError: () => toast.error("Couldn't place the order. Please try again."),
+    onError: () => toast.error("Couldn't start checkout. Please try again."),
   });
 
   if (menuQuery.error) {
@@ -312,14 +373,48 @@ export default function PublicMenuPage() {
                 </div>
 
                 <div className="p-6">
+                  <div className="mb-4 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('cash')}
+                      className={cn(
+                        'flex min-h-16 items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+                        paymentMethod === 'cash' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background',
+                      )}
+                    >
+                      <Banknote className="size-5 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-bold">Counter</span>
+                        <span className="block truncate text-xs text-muted-foreground">Pay after ordering</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('paytm')}
+                      className={cn(
+                        'flex min-h-16 items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+                        paymentMethod === 'paytm' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background',
+                      )}
+                    >
+                      <CreditCard className="size-5 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-bold">Paytm</span>
+                        <span className="block truncate text-xs text-muted-foreground">{formatCurrency(total)}</span>
+                      </span>
+                    </button>
+                  </div>
                   <Button
                     size="lg"
                     className="h-12 w-full gap-2"
                     loading={createOrder.isPending}
-                    onClick={() => createOrder.mutate()}
+                    onClick={() => createOrder.mutate(paymentMethod)}
                   >
-                    <Banknote className="size-4" />
-                    Place order · Pay at counter
+                    {createOrder.isPending && paymentMethod === 'paytm'
+                      ? <Loader2 className="size-4 animate-spin" />
+                      : paymentMethod === 'paytm'
+                        ? <CreditCard className="size-4" />
+                        : <Banknote className="size-4" />}
+                    {paymentMethod === 'paytm' ? `Paytm PG - ${formatCurrency(total)}` : 'Place order - Pay at counter'}
                   </Button>
                 </div>
               </SheetContent>

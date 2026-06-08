@@ -121,9 +121,18 @@ export const publicOrderService = {
     return unwrap(res.data);
   },
 
-  async createPaytmTransaction(payload: Record<string, unknown>): Promise<unknown> {
+  async createPaytmTransaction(payload: Record<string, unknown>): Promise<{
+    orderId: string;
+    amount: number;
+    txnToken: string;
+    merchantId: string;
+    paymentUrl: string;
+    website: string;
+    currency: 'INR';
+    restaurantName: string;
+  }> {
     const res = await apiClient.post(endpoints.paytm.createTransaction, payload);
-    return unwrap<unknown>(res.data);
+    return unwrap(res.data);
   },
 
   async verifyPaytmPayment(payload: Record<string, unknown>): Promise<unknown> {

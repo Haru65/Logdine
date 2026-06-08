@@ -15,9 +15,12 @@ export interface Tenant {
   slug: string;
   tenant_type?: 'cafe' | 'restaurant' | 'lodging' | string;
   type?: 'cafe' | 'restaurant' | 'lodging' | string;
+  source?: 'cafe' | 'restaurant' | 'lodging' | string;
   address?: string;
   contact_phone?: string;
   logo_url?: string;
+  logoUrl?: string;
+  logo?: string;
   is_active?: boolean;
   is_paused?: boolean;
   created_at?: string;

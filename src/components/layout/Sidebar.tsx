@@ -14,11 +14,13 @@ import {
   Boxes,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { Logo } from '@/components/common/Logo';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
+import { restaurantService } from '@/services/restaurant.service';
 
 interface NavGroup {
   label: string;
@@ -69,8 +71,18 @@ export function Sidebar() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggle = useUIStore((s) => s.toggleSidebar);
   const tenant = useAuthStore((s) => s.user?.tenant);
-  const tenantKind = String(tenant?.tenant_type || tenant?.type || '').toLowerCase();
-  const activeLabel = tenantKind === 'cafe' ? 'Active Cafe' : 'Active Restaurant';
+  const tenantId = useAuthStore((s) => s.user?.tenantId);
+  const latestTenant = useQuery({
+    queryKey: ['active-tenant-info', tenantId],
+    queryFn: () => restaurantService.getInfo(String(tenantId)),
+    enabled: Boolean(tenantId),
+  });
+  const activeTenant = latestTenant.data || tenant;
+  const tenantKind = String(activeTenant?.tenant_type || activeTenant?.type || activeTenant?.source || '').toLowerCase();
+  const activeLabel = tenantKind === 'cafe' || activeTenant?.name?.toLowerCase().includes('cafe')
+    ? 'Active Cafe'
+    : 'Active Restaurant';
+  const logoSrc = activeTenant?.logo_url || activeTenant?.logoUrl || activeTenant?.logo || '';
   const location = useLocation();
 
   return (
@@ -86,22 +98,22 @@ export function Sidebar() {
       </div>
 
       {/* Restaurant chip */}
-      {!collapsed && tenant && (
+      {!collapsed && activeTenant && (
         <div className="m-3 rounded-xl border border-border/60 bg-background/60 p-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             {activeLabel}
           </p>
-          {tenant.logo_url && (
+          {logoSrc && (
             <div className="mt-3 flex h-[72px] w-full items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-card/80 p-2">
               <img
-                src={tenant.logo_url}
-                alt={`${tenant.name} logo`}
+                src={logoSrc}
+                alt={`${activeTenant.name} logo`}
                 className="max-h-full max-w-full object-contain"
                 loading="lazy"
               />
             </div>
           )}
-          <p className="mt-2 truncate text-sm font-semibold">{tenant.name}</p>
+          <p className="mt-2 truncate text-sm font-semibold">{activeTenant.name}</p>
         </div>
       )}
 
