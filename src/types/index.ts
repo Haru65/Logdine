@@ -13,6 +13,8 @@ export interface Tenant {
   id: string;
   name: string;
   slug: string;
+  tenant_type?: 'cafe' | 'restaurant' | 'lodging' | string;
+  type?: 'cafe' | 'restaurant' | 'lodging' | string;
   address?: string;
   contact_phone?: string;
   logo_url?: string;

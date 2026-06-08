@@ -69,6 +69,8 @@ export function Sidebar() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggle = useUIStore((s) => s.toggleSidebar);
   const tenant = useAuthStore((s) => s.user?.tenant);
+  const tenantKind = String(tenant?.tenant_type || tenant?.type || '').toLowerCase();
+  const activeLabel = tenantKind === 'cafe' ? 'Active Cafe' : 'Active Restaurant';
   const location = useLocation();
 
   return (
@@ -87,9 +89,19 @@ export function Sidebar() {
       {!collapsed && tenant && (
         <div className="m-3 rounded-xl border border-border/60 bg-background/60 p-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            Active Restaurant
+            {activeLabel}
           </p>
-          <p className="mt-0.5 truncate text-sm font-semibold">{tenant.name}</p>
+          {tenant.logo_url && (
+            <div className="mt-3 flex h-[72px] w-full items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-card/80 p-2">
+              <img
+                src={tenant.logo_url}
+                alt={`${tenant.name} logo`}
+                className="max-h-full max-w-full object-contain"
+                loading="lazy"
+              />
+            </div>
+          )}
+          <p className="mt-2 truncate text-sm font-semibold">{tenant.name}</p>
         </div>
       )}
 

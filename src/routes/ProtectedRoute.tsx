@@ -1,5 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuthStore, selectIsAuthed } from '@/store/auth.store';
+import { useMe } from '@/hooks/useAuth';
 import type { UserRole } from '@/types';
 
 interface ProtectedRouteProps {
@@ -18,7 +20,13 @@ export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   const isAuthed = useAuthStore(selectIsAuthed);
   const hydrated = useAuthStore((s) => s.hydrated);
   const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
+  const me = useMe();
   const location = useLocation();
+
+  useEffect(() => {
+    if (me.data) setUser(me.data);
+  }, [me.data, setUser]);
 
   if (!hydrated) {
     // Brief loading splash; tied to persist rehydration (usually <50ms).
