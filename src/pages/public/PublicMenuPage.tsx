@@ -65,7 +65,6 @@ export default function PublicMenuPage() {
   const taxes = useMemo(() => getTaxes(subtotal, menuQuery.data?.taxConfig), [subtotal, menuQuery.data?.taxConfig]);
   const total = subtotal + taxes.reduce((sum, tax) => sum + tax.amount, 0);
   const paytmOption = menuQuery.data?.paymentOptions?.paytm;
-  const hasPaytm = paytmOption?.isAvailable === true;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -84,10 +83,6 @@ export default function PublicMenuPage() {
 
     window.history.replaceState({}, '', window.location.pathname);
   }, [cart, queryClient, slug, table]);
-
-  useEffect(() => {
-    if (!hasPaytm && paymentMethod === 'paytm') setPaymentMethod('cash');
-  }, [hasPaytm, paymentMethod]);
 
   const activeOrder = useMemo(() => {
     return ordersQuery.data?.find((order) => activeOrderStatuses.has(order.status)) ?? null;
@@ -132,9 +127,8 @@ export default function PublicMenuPage() {
 
   const createOrder = useMutation({
     mutationFn: async (method: CheckoutPaymentMethod) => {
-      const checkoutMethod = method === 'paytm' && hasPaytm ? 'paytm' : 'cash';
       const createdOrder = await publicOrderService.createOrder(slug, table, {
-        paymentMethod: checkoutMethod === 'paytm' ? 'online' : 'cash',
+        paymentMethod: method === 'paytm' ? 'online' : 'cash',
         notes: cart.notes,
         items: cart.items.map((line) => ({
           menu_item_id: line.menu_item_id,
@@ -155,7 +149,7 @@ export default function PublicMenuPage() {
         })),
       });
 
-      if (checkoutMethod === 'paytm') {
+      if (method === 'paytm') {
         const orderAmount = Number((createdOrder as any).total ?? (createdOrder as any).totalAmount ?? total);
         const payment = await publicOrderService.createPaytmTransaction({
           orderId: createdOrder.id,
@@ -166,7 +160,7 @@ export default function PublicMenuPage() {
         submitPaytmForm(payment);
       }
 
-      return { method: checkoutMethod };
+      return { method };
     },
     onSuccess: async ({ method }) => {
       if (method === 'paytm') {
@@ -178,7 +172,7 @@ export default function PublicMenuPage() {
       toast.success('Order placed. The kitchen has received it.');
       await queryClient.invalidateQueries({ queryKey: ['public', 'table-orders', slug, table] });
     },
-    onError: () => toast.error("Couldn't start checkout. Please try again."),
+    onError: (error: any) => toast.error(error?.message || "Couldn't start checkout. Please try again."),
   });
 
   if (menuQuery.error) {
@@ -397,22 +391,20 @@ export default function PublicMenuPage() {
                         <span className="block truncate text-xs text-muted-foreground">Pay after ordering</span>
                       </span>
                     </button>
-                    {hasPaytm && (
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('paytm')}
-                        className={cn(
-                          'flex min-h-16 items-center gap-3 rounded-lg border p-3 text-left transition-colors',
-                          paymentMethod === 'paytm' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background',
-                        )}
-                      >
-                        <CreditCard className="size-5 shrink-0" />
-                        <span className="min-w-0">
-                          <span className="block text-sm font-bold">Paytm</span>
-                          <span className="block truncate text-xs text-muted-foreground">{formatCurrency(total)}</span>
-                        </span>
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('paytm')}
+                      className={cn(
+                        'flex min-h-16 items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+                        paymentMethod === 'paytm' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background',
+                      )}
+                    >
+                      <CreditCard className="size-5 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-bold">Paytm PG</span>
+                        <span className="block truncate text-xs text-muted-foreground">{formatCurrency(total)}</span>
+                      </span>
+                    </button>
                   </div>
                   <Button
                     size="lg"
