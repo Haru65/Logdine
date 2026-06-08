@@ -276,12 +276,19 @@ export type PaymentProvider = 'razorpay' | 'paytm';
 
 export interface PaymentConfig {
   id?: string;
+  accountId?: string;
+  account_label?: string;
+  accountLabel?: string;
   provider: PaymentProvider;
   key_id: string;
   key_secret?: string;
   webhook_secret?: string;
   website?: string;
   is_active?: boolean | number;
+  isActive?: boolean | number;
+  is_default?: boolean | number;
+  isDefault?: boolean | number;
+  accounts?: PaymentConfig[];
 }
 
 export type IntegrationProvider = 'zomato' | 'swiggy';

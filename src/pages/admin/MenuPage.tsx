@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   useBulkUpdateImages,
   useCategories,
+  useCreateItem,
   useCreateItemsBulk,
   useDeleteItem,
   useMenuItems,
@@ -22,6 +23,34 @@ import {
 } from '@/hooks/useRestaurant';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { MenuCategory, MenuItem } from '@/types';
+
+type OptionRow = {
+  name: string;
+  price: string;
+  is_available: boolean;
+};
+
+function tagsToInputValue(tags: unknown): string {
+  if (Array.isArray(tags)) {
+    return tags.map((tag) => String(tag).trim()).filter(Boolean).join(', ');
+  }
+  if (typeof tags === 'string') {
+    const trimmed = tags.trim();
+    if (!trimmed) return '';
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map((tag) => String(tag).trim()).filter(Boolean).join(', ');
+      }
+    } catch {
+      // Existing cafe API stores tags as comma-separated text.
+    }
+
+    return trimmed;
+  }
+  return '';
+}
 
 export default function MenuPage() {
   const navigate = useNavigate();
@@ -33,7 +62,10 @@ export default function MenuPage() {
   const [activeCat, setActiveCat] = useState<string | 'all'>('all');
   const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+
+  const defaultCategoryId = activeCat === 'all' ? categories[0]?.id : activeCat;
 
   const filtered = useMemo(() => {
     return items.filter((it) => {
@@ -62,7 +94,7 @@ export default function MenuPage() {
           <Button variant="outline" className="gap-1.5" onClick={() => setBulkOpen(true)}>
             <Plus className="size-4" /> Bulk import
           </Button>
-          <Button className="gap-1.5">
+          <Button className="gap-1.5" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" /> Add item
           </Button>
         </div>
@@ -133,7 +165,7 @@ export default function MenuPage() {
                 <p className="text-sm text-muted-foreground">
                   Add your first menu item to get started.
                 </p>
-                <Button className="mt-2 gap-1.5">
+                <Button className="mt-2 gap-1.5" onClick={() => setCreateOpen(true)}>
                   <Plus className="size-4" /> Add item
                 </Button>
               </CardContent>
@@ -171,11 +203,22 @@ export default function MenuPage() {
         </SheetContent>
       </Sheet>
 
+      <Sheet open={createOpen} onOpenChange={setCreateOpen}>
+        <SheetContent side="right" className="overflow-y-auto">
+          <MenuItemEditor
+            key={`new-${defaultCategoryId ?? 'none'}`}
+            categories={categories}
+            defaultCategoryId={defaultCategoryId}
+            onClose={() => setCreateOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
       <Sheet open={bulkOpen} onOpenChange={setBulkOpen}>
         <SheetContent side="right" className="overflow-y-auto">
           <BulkImportPanel
             categories={categories}
-            defaultCategoryId={activeCat === 'all' ? categories[0]?.id : activeCat}
+            defaultCategoryId={defaultCategoryId}
             onClose={() => setBulkOpen(false)}
           />
         </SheetContent>
@@ -266,41 +309,100 @@ function ItemRow({
 function MenuItemEditor({
   item,
   categories,
+  defaultCategoryId,
   onClose,
 }: {
-  item: MenuItem;
+  item?: MenuItem;
   categories: MenuCategory[];
+  defaultCategoryId?: string;
   onClose: () => void;
 }) {
+  const createItem = useCreateItem();
   const updateItem = useUpdateItem();
   const updateVariants = useUpdateItemVariants();
   const updateAddons = useUpdateItemAddons();
   const bulkImages = useBulkUpdateImages();
-  const [name, setName] = useState(item.name);
-  const [categoryId, setCategoryId] = useState(item.category_id);
-  const [description, setDescription] = useState(item.description ?? '');
-  const [price, setPrice] = useState(String(item.price));
-  const [imageUrl, setImageUrl] = useState(item.image_url ?? '');
-  const [tags, setTags] = useState((item.tags ?? []).join(', '));
+  const isEditing = Boolean(item?.id);
+  const [name, setName] = useState(item?.name ?? '');
+  const [categoryId, setCategoryId] = useState(item?.category_id ?? defaultCategoryId ?? '');
+  const [description, setDescription] = useState(item?.description ?? '');
+  const [price, setPrice] = useState(item ? String(item.price) : '');
+  const [imageUrl, setImageUrl] = useState(item?.image_url ?? '');
+  const [tags, setTags] = useState(tagsToInputValue(item?.tags));
   const [preparationTime, setPreparationTime] = useState(
-    item.preparation_time ? String(item.preparation_time) : '',
+    item?.preparation_time ? String(item.preparation_time) : '',
   );
-  const [isVeg, setIsVeg] = useState(item.is_veg);
-  const [isSpicy, setIsSpicy] = useState(Boolean(item.is_spicy));
-  const [isAvailable, setIsAvailable] = useState(item.is_available);
-  const [variants, setVariants] = useState(
-    (item.variants?.length ? item.variants : []).map((v) => ({ name: v.name, price: String(v.price) })),
+  const [isVeg, setIsVeg] = useState(item?.is_veg ?? true);
+  const [isSpicy, setIsSpicy] = useState(Boolean(item?.is_spicy));
+  const [isAvailable, setIsAvailable] = useState(item?.is_available ?? true);
+  const [variants, setVariants] = useState<OptionRow[]>(
+    (item?.variants?.length ? item.variants : []).map((v) => ({
+      name: v.name,
+      price: String(v.price),
+      is_available: v.is_available === undefined ? true : Boolean(v.is_available),
+    })),
   );
-  const [addons, setAddons] = useState(
-    (item.addons?.length ? item.addons : []).map((a) => ({ name: a.name, price: String(a.price) })),
+  const [addons, setAddons] = useState<OptionRow[]>(
+    (item?.addons?.length ? item.addons : []).map((a) => ({
+      name: a.name,
+      price: String(a.price),
+      is_available: a.is_available === undefined ? true : Boolean(a.is_available),
+    })),
   );
 
-  const canSave = name.trim().length > 0 && Number.isFinite(Number(price)) && Number(price) >= 0;
+  const canSave = Boolean(categoryId) && name.trim().length > 0 && Number.isFinite(Number(price)) && Number(price) >= 0;
+  const isSaving = createItem.isPending || updateItem.isPending || updateVariants.isPending || updateAddons.isPending;
+
+  const cleanVariants = () =>
+    variants
+      .filter((row) => row.name.trim() && Number(row.price) >= 0)
+      .map((row, index) => ({
+        name: row.name.trim(),
+        price: Number(row.price),
+        is_available: row.is_available,
+        sort_order: index,
+      }));
+
+  const cleanAddons = () =>
+    addons
+      .filter((row) => row.name.trim() && Number(row.price) >= 0)
+      .map((row, index) => ({
+        name: row.name.trim(),
+        price: Number(row.price),
+        is_available: row.is_available,
+        sort_order: index,
+      }));
+
+  const saveItem = async () => {
+    if (!canSave) return;
+
+    const data = {
+      category_id: categoryId,
+      name: name.trim(),
+      description,
+      price: Number(price),
+      image_url: imageUrl,
+      preparation_time: preparationTime ? Number(preparationTime) : undefined,
+      tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+      is_veg: isVeg,
+      is_spicy: isSpicy,
+      is_available: isAvailable,
+    };
+
+    const itemId = item?.id ?? (await createItem.mutateAsync(data)).id;
+    if (item?.id) {
+      await updateItem.mutateAsync({ id: item.id, data });
+    }
+
+    await updateVariants.mutateAsync({ id: itemId, variants: cleanVariants() });
+    await updateAddons.mutateAsync({ id: itemId, addons: cleanAddons() });
+    onClose();
+  };
 
   return (
     <>
       <SheetHeader>
-        <SheetTitle>Edit menu item</SheetTitle>
+        <SheetTitle>{isEditing ? 'Edit menu item' : 'Add menu item'}</SheetTitle>
       </SheetHeader>
       <div className="space-y-4 p-6">
         <div className="space-y-1.5">
@@ -315,6 +417,7 @@ function MenuItemEditor({
             onChange={(e) => setCategoryId(e.target.value)}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           >
+            <option value="">Select category</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
@@ -417,40 +520,10 @@ function MenuItemEditor({
           <Button
             className="flex-1"
             disabled={!canSave}
-            loading={updateItem.isPending}
-            onClick={() => {
-              updateItem.mutate(
-                {
-                  id: item.id,
-                  data: {
-                    category_id: categoryId,
-                    name: name.trim(),
-                    description,
-                    price: Number(price),
-                    image_url: imageUrl,
-                    preparation_time: preparationTime ? Number(preparationTime) : undefined,
-                    tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
-                    is_veg: isVeg,
-                    is_spicy: isSpicy,
-                    is_available: isAvailable,
-                  },
-                },
-                {
-                  onSuccess: () => {
-                    const cleanVariants = variants
-                      .filter((row) => row.name.trim() && Number(row.price) >= 0)
-                      .map((row, index) => ({ name: row.name.trim(), price: Number(row.price), sort_order: index }));
-                    const cleanAddons = addons
-                      .filter((row) => row.name.trim() && Number(row.price) >= 0)
-                      .map((row, index) => ({ name: row.name.trim(), price: Number(row.price), sort_order: index }));
-                    updateVariants.mutate({ id: item.id, variants: cleanVariants });
-                    updateAddons.mutate({ id: item.id, addons: cleanAddons }, { onSuccess: onClose });
-                  },
-                },
-              );
-            }}
+            loading={isSaving}
+            onClick={() => void saveItem()}
           >
-            Save changes
+            {isEditing ? 'Save changes' : 'Create item'}
           </Button>
           <Button variant="outline" onClick={onClose}>
             Cancel
@@ -469,8 +542,8 @@ function OptionEditor({
   namePlaceholder,
 }: {
   title: string;
-  rows: { name: string; price: string }[];
-  onChange: (rows: { name: string; price: string }[]) => void;
+  rows: OptionRow[];
+  onChange: (rows: OptionRow[]) => void;
   addLabel: string;
   namePlaceholder: string;
 }) {
@@ -478,7 +551,12 @@ function OptionEditor({
     <div className="space-y-2 rounded-lg border border-border p-3">
       <div className="flex items-center justify-between">
         <Label>{title}</Label>
-        <Button type="button" variant="ghost" size="sm" onClick={() => onChange([...rows, { name: '', price: '0' }])}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => onChange([...rows, { name: '', price: '0', is_available: true }])}
+        >
           <Plus className="size-3.5" /> {addLabel}
         </Button>
       </div>
@@ -487,7 +565,7 @@ function OptionEditor({
       ) : (
         <div className="space-y-2">
           {rows.map((row, index) => (
-            <div key={index} className="grid grid-cols-[1fr_96px_auto] gap-2">
+            <div key={index} className="grid grid-cols-[1fr_96px_auto_auto] items-center gap-2">
               <Input
                 placeholder={namePlaceholder}
                 value={row.name}
@@ -500,6 +578,15 @@ function OptionEditor({
                 value={row.price}
                 onChange={(e) => onChange(rows.map((r, i) => (i === index ? { ...r, price: e.target.value } : r)))}
               />
+              <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border px-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={row.is_available}
+                  onChange={(e) => onChange(rows.map((r, i) => (i === index ? { ...r, is_available: e.target.checked } : r)))}
+                  className="size-4 accent-primary"
+                />
+                <span>Visible</span>
+              </label>
               <Button type="button" variant="ghost" size="icon" onClick={() => onChange(rows.filter((_, i) => i !== index))}>
                 <X className="size-4" />
               </Button>

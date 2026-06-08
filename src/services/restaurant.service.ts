@@ -61,6 +61,45 @@ function normalizeOrder(raw: unknown): Order {
   };
 }
 
+function normalizeMenuTags(tags: unknown): string[] {
+  if (Array.isArray(tags)) {
+    return tags.map((tag) => String(tag).trim()).filter(Boolean);
+  }
+  if (typeof tags === 'string') {
+    const trimmed = tags.trim();
+    if (!trimmed) return [];
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map((tag) => String(tag).trim()).filter(Boolean);
+      }
+    } catch {
+      // Plain comma-separated text is the format stored by the cafe API.
+    }
+
+    return trimmed.split(',').map((tag) => tag.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeMenuItem(raw: unknown): MenuItem {
+  const item = raw as Omit<MenuItem, 'tags'> & { tags?: unknown };
+  return {
+    ...item,
+    tags: normalizeMenuTags(item.tags),
+  };
+}
+
+function prepareMenuItemPayload(data: Partial<MenuItem>): Omit<Partial<MenuItem>, 'tags'> & { tags?: string } {
+  const { tags, ...rest } = data;
+  if (tags === undefined) return rest;
+  return {
+    ...rest,
+    tags: normalizeMenuTags(tags).join(', '),
+  };
+}
+
 /**
  * Restaurant-scoped API methods. Each method takes `tenantId` explicitly
  * so the surface is testable and stateless.
@@ -189,22 +228,23 @@ export const restaurantService = {
 
   async getItems(tenantId: string): Promise<MenuItem[]> {
     const res = await apiClient.get(endpoints.restaurant(tenantId).items);
-    return unwrap<MenuItem[]>(res.data);
+    return unwrap<unknown[]>(res.data).map(normalizeMenuItem);
   },
 
   async createItem(tenantId: string, data: Partial<MenuItem>): Promise<MenuItem> {
-    const res = await apiClient.post(endpoints.restaurant(tenantId).items, data);
-    return unwrap<MenuItem>(res.data);
+    const res = await apiClient.post(endpoints.restaurant(tenantId).items, prepareMenuItemPayload(data));
+    return normalizeMenuItem(unwrap<unknown>(res.data));
   },
 
   async createItemsBulk(tenantId: string, items: Partial<MenuItem>[]): Promise<MenuItem[]> {
-    const res = await apiClient.post(endpoints.restaurant(tenantId).itemsBulk, { items });
-    return unwrap<MenuItem[]>(res.data);
+    const payload = items.map((item) => prepareMenuItemPayload(item));
+    const res = await apiClient.post(endpoints.restaurant(tenantId).itemsBulk, { items: payload });
+    return unwrap<unknown[]>(res.data).map(normalizeMenuItem);
   },
 
   async updateItem(tenantId: string, id: string, data: Partial<MenuItem>): Promise<MenuItem> {
-    const res = await apiClient.put(endpoints.restaurant(tenantId).item(id), data);
-    return unwrap<MenuItem>(res.data);
+    const res = await apiClient.put(endpoints.restaurant(tenantId).item(id), prepareMenuItemPayload(data));
+    return normalizeMenuItem(unwrap<unknown>(res.data));
   },
 
   async deleteItem(tenantId: string, id: string): Promise<void> {
