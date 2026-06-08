@@ -7,6 +7,14 @@ export interface PublicMenuResponse {
   table: RestaurantTable;
   categories: MenuCategory[];
   items: MenuItem[];
+  paymentOptions?: {
+    cash?: { isAvailable: boolean };
+    paytm?: {
+      isAvailable: boolean;
+      accountId?: string | null;
+      accountLabel?: string | null;
+    };
+  };
   taxConfig?: {
     taxTypes?: Array<{
       id: string;

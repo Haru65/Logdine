@@ -64,6 +64,8 @@ export default function PublicMenuPage() {
   const subtotal = useCartStore(selectSubtotal);
   const taxes = useMemo(() => getTaxes(subtotal, menuQuery.data?.taxConfig), [subtotal, menuQuery.data?.taxConfig]);
   const total = subtotal + taxes.reduce((sum, tax) => sum + tax.amount, 0);
+  const paytmOption = menuQuery.data?.paymentOptions?.paytm;
+  const hasPaytm = paytmOption?.isAvailable === true;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -82,6 +84,10 @@ export default function PublicMenuPage() {
 
     window.history.replaceState({}, '', window.location.pathname);
   }, [cart, queryClient, slug, table]);
+
+  useEffect(() => {
+    if (!hasPaytm && paymentMethod === 'paytm') setPaymentMethod('cash');
+  }, [hasPaytm, paymentMethod]);
 
   const activeOrder = useMemo(() => {
     return ordersQuery.data?.find((order) => activeOrderStatuses.has(order.status)) ?? null;
@@ -126,8 +132,9 @@ export default function PublicMenuPage() {
 
   const createOrder = useMutation({
     mutationFn: async (method: CheckoutPaymentMethod) => {
+      const checkoutMethod = method === 'paytm' && hasPaytm ? 'paytm' : 'cash';
       const createdOrder = await publicOrderService.createOrder(slug, table, {
-        paymentMethod: method === 'paytm' ? 'online' : 'cash',
+        paymentMethod: checkoutMethod === 'paytm' ? 'online' : 'cash',
         notes: cart.notes,
         items: cart.items.map((line) => ({
           menu_item_id: line.menu_item_id,
@@ -148,17 +155,18 @@ export default function PublicMenuPage() {
         })),
       });
 
-      if (method === 'paytm') {
+      if (checkoutMethod === 'paytm') {
         const orderAmount = Number((createdOrder as any).total ?? (createdOrder as any).totalAmount ?? total);
         const payment = await publicOrderService.createPaytmTransaction({
           orderId: createdOrder.id,
           amount: orderAmount,
           restaurantSlug: slug,
+          accountId: paytmOption?.accountId || undefined,
         });
         submitPaytmForm(payment);
       }
 
-      return { method };
+      return { method: checkoutMethod };
     },
     onSuccess: async ({ method }) => {
       if (method === 'paytm') {
@@ -188,6 +196,7 @@ export default function PublicMenuPage() {
   }
 
   const data = menuQuery.data;
+  const logoSrc = data?.restaurant.logo_url || data?.restaurant.logoUrl || data?.restaurant.logo || '';
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -195,8 +204,8 @@ export default function PublicMenuPage() {
         <div className="container py-3">
           <div className="flex items-center gap-3">
             <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-primary/10">
-              {data?.restaurant.logo_url ? (
-                <img src={data.restaurant.logo_url} alt={data.restaurant.name} className="size-full object-cover" />
+              {logoSrc ? (
+                <img src={logoSrc} alt={data?.restaurant.name || 'Restaurant logo'} className="size-full object-contain p-1" />
               ) : (
                 <Utensils className="size-5 text-primary" />
               )}
@@ -388,20 +397,22 @@ export default function PublicMenuPage() {
                         <span className="block truncate text-xs text-muted-foreground">Pay after ordering</span>
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('paytm')}
-                      className={cn(
-                        'flex min-h-16 items-center gap-3 rounded-lg border p-3 text-left transition-colors',
-                        paymentMethod === 'paytm' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background',
-                      )}
-                    >
-                      <CreditCard className="size-5 shrink-0" />
-                      <span className="min-w-0">
-                        <span className="block text-sm font-bold">Paytm</span>
-                        <span className="block truncate text-xs text-muted-foreground">{formatCurrency(total)}</span>
-                      </span>
-                    </button>
+                    {hasPaytm && (
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('paytm')}
+                        className={cn(
+                          'flex min-h-16 items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+                          paymentMethod === 'paytm' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background',
+                        )}
+                      >
+                        <CreditCard className="size-5 shrink-0" />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-bold">Paytm</span>
+                          <span className="block truncate text-xs text-muted-foreground">{formatCurrency(total)}</span>
+                        </span>
+                      </button>
+                    )}
                   </div>
                   <Button
                     size="lg"
