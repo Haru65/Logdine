@@ -65,6 +65,27 @@ export default function PublicMenuPage() {
   const taxes = useMemo(() => getTaxes(subtotal, menuQuery.data?.taxConfig), [subtotal, menuQuery.data?.taxConfig]);
   const total = subtotal + taxes.reduce((sum, tax) => sum + tax.amount, 0);
   const paytmOption = menuQuery.data?.paymentOptions?.paytm;
+  const cartScope = `${slug}:${table}`;
+  const availableItemIds = useMemo(
+    () => new Set((menuQuery.data?.items ?? []).map((item) => item.id)),
+    [menuQuery.data?.items],
+  );
+
+  useEffect(() => {
+    if (!slug || !table) return;
+    if (cart.tableId === cartScope) return;
+    if (cart.items.length) toast.info('Cart cleared for this table.');
+    cart.clear();
+    cart.setTable(cartScope);
+  }, [cart, cart.items.length, cart.tableId, cartScope, slug, table]);
+
+  useEffect(() => {
+    if (!menuQuery.data || cart.items.length === 0) return;
+    const staleItems = cart.items.filter((line) => !availableItemIds.has(line.menu_item_id));
+    if (!staleItems.length) return;
+    staleItems.forEach((line) => cart.removeItem(line.uid));
+    toast.error('Removed unavailable items from your cart.');
+  }, [availableItemIds, cart, cart.items, menuQuery.data]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -127,6 +148,11 @@ export default function PublicMenuPage() {
 
   const createOrder = useMutation({
     mutationFn: async (method: CheckoutPaymentMethod) => {
+      const unavailableItems = cart.items.filter((line) => !availableItemIds.has(line.menu_item_id));
+      if (unavailableItems.length) {
+        unavailableItems.forEach((line) => cart.removeItem(line.uid));
+        throw new Error('Some cart items are no longer available. Please add them again.');
+      }
       const createdOrder = await publicOrderService.createOrder(slug, table, {
         paymentMethod: method === 'paytm' ? 'online' : 'cash',
         notes: cart.notes,
