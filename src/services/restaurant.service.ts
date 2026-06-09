@@ -16,6 +16,7 @@ import type {
   ProductReport,
   RestaurantTable,
   RevenueReport,
+  TaxConfig,
   Tenant,
 } from '@/types';
 
@@ -382,14 +383,14 @@ export const restaurantService = {
   },
 
   // ---------------------------- Tax & config -------------------------------
-  async getTaxConfig(tenantId: string): Promise<unknown> {
+  async getTaxConfig(tenantId: string): Promise<TaxConfig> {
     const res = await apiClient.get(endpoints.restaurant(tenantId).taxConfig);
-    return unwrap<unknown>(res.data);
+    return unwrap<TaxConfig>(res.data);
   },
 
-  async updateTaxConfig(tenantId: string, config: Record<string, unknown>): Promise<unknown> {
+  async updateTaxConfig(tenantId: string, config: TaxConfig): Promise<TaxConfig> {
     const res = await apiClient.put(endpoints.restaurant(tenantId).taxConfig, config);
-    return unwrap<unknown>(res.data);
+    return unwrap<TaxConfig>(res.data);
   },
 
   async getTaxLogs(tenantId: string): Promise<unknown[]> {

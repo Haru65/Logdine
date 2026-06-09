@@ -14,6 +14,7 @@ import type {
   PaymentConfig,
   PaymentProvider,
   RestaurantTable,
+  TaxConfig,
 } from '@/types';
 import { toast } from 'sonner';
 
@@ -327,6 +328,31 @@ export function useDeleteCombo() {
     onSuccess: () => {
       if (tenantId) qc.invalidateQueries({ queryKey: qk.combos(tenantId) });
       toast.success('Combo deleted');
+    },
+  });
+}
+
+// ----------------------- Tax configuration -------------------------------
+export function useTaxConfig() {
+  const tenantId = useTenantId();
+  return useQuery({
+    queryKey: tenantId ? ['tax-config', tenantId] : ['tax-config', 'none'],
+    queryFn: () => restaurantService.getTaxConfig(requireTenantId(tenantId)),
+    enabled: Boolean(tenantId),
+  });
+}
+
+export function useSaveTaxConfig() {
+  const tenantId = useTenantId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: TaxConfig) => restaurantService.updateTaxConfig(requireTenantId(tenantId), data),
+    onSuccess: () => {
+      if (tenantId) qc.invalidateQueries({ queryKey: ['tax-config', tenantId] });
+      toast.success('Tax settings saved');
+    },
+    onError: () => {
+      toast.error('Failed to save tax settings');
     },
   });
 }

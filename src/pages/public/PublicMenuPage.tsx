@@ -719,11 +719,11 @@ function BillRow({ label, value, bold, muted }: { label: string; value: string; 
 function getTaxes(
   subtotal: number,
   taxConfig?: {
-    taxTypes?: Array<{ id: string; name: string; percentage: number; isActive: boolean }>;
+    taxTypes?: Array<{ id: string; name: string; percentage: number; isActive: boolean | number | string }>;
   } | null,
 ) {
   return (taxConfig?.taxTypes ?? [])
-    .filter((tax) => tax.isActive && Number(tax.percentage) > 0)
+    .filter((tax) => (tax.isActive === true || tax.isActive === 1 || tax.isActive === '1' || String(tax.isActive).toLowerCase() === 'true') && Number(tax.percentage) > 0)
     .map((tax) => ({
       ...tax,
       percentage: Number(tax.percentage),

@@ -291,6 +291,19 @@ export interface PaymentConfig {
   accounts?: PaymentConfig[];
 }
 
+export interface TaxType {
+  id: string;
+  name: string;
+  percentage: number;
+  isActive: boolean;
+}
+
+export interface TaxConfig {
+  taxTypes: TaxType[];
+  totalTaxTypes?: number;
+  gstin?: string;
+}
+
 export type IntegrationProvider = 'zomato' | 'swiggy';
 
 export interface IntegrationConfig {

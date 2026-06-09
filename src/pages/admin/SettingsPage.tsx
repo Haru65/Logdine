@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -6,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/auth.store';
+import { useSaveTaxConfig, useTaxConfig } from '@/hooks/useRestaurant';
 
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
@@ -52,19 +54,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="tax">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Tax Configuration</CardTitle>
-              <p className="text-sm text-muted-foreground">GST / VAT settings applied at billing.</p>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <Field label="Tax rate (%)" type="number" defaultValue="5" />
-              <Field label="GSTIN" placeholder="29ABCDE1234F1Z5" />
-              <div className="md:col-span-2 flex justify-end">
-                <Button>Save tax settings</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <TaxSettingsCard />
         </TabsContent>
 
         <TabsContent value="email">
@@ -98,6 +88,82 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function TaxSettingsCard() {
+  const { data } = useTaxConfig();
+  const save = useSaveTaxConfig();
+  const gst = data?.taxTypes?.find((tax) => tax.id === 'gst') ?? data?.taxTypes?.[0];
+  const [rate, setRate] = useState('0');
+  const [gstin, setGstin] = useState('');
+  const [active, setActive] = useState(true);
+
+  useEffect(() => {
+    if (!data) return;
+    setRate(String(gst?.percentage ?? 0));
+    setGstin(data.gstin ?? '');
+    setActive(gst?.isActive ?? true);
+  }, [data, gst?.isActive, gst?.percentage]);
+
+  const numericRate = Number(rate);
+  const canSave = Number.isFinite(numericRate) && numericRate >= 0 && numericRate <= 100;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Tax Configuration</CardTitle>
+        <p className="text-sm text-muted-foreground">GST settings applied to customer checkout and order totals.</p>
+      </CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-2">
+        <Field
+          label="GST rate (%)"
+          type="number"
+          min={0}
+          max={100}
+          step="0.01"
+          value={rate}
+          onChange={(event) => setRate(event.target.value)}
+        />
+        <Field
+          label="GSTIN"
+          value={gstin}
+          placeholder="29ABCDE1234F1Z5"
+          onChange={(event) => setGstin(event.target.value.toUpperCase())}
+        />
+        <label className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
+          <span>Apply GST at checkout</span>
+          <input
+            type="checkbox"
+            checked={active}
+            onChange={(event) => setActive(event.target.checked)}
+            className="size-4 accent-primary"
+          />
+        </label>
+        <div className="flex items-center justify-end">
+          <Button
+            disabled={!canSave}
+            loading={save.isPending}
+            onClick={() =>
+              save.mutate({
+                taxTypes: [
+                  {
+                    id: 'gst',
+                    name: 'GST',
+                    percentage: Number(numericRate.toFixed(2)),
+                    isActive: active,
+                  },
+                ],
+                totalTaxTypes: 1,
+                gstin: gstin.trim(),
+              })
+            }
+          >
+            Save tax settings
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

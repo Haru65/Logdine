@@ -20,14 +20,40 @@ export interface PublicMenuResponse {
       id: string;
       name: string;
       percentage: number;
-      isActive: boolean;
+      isActive: boolean | number | string;
     }>;
+    gstin?: string;
   } | null;
 }
 
 type PublicMenuCategory = MenuCategory & { items?: MenuItem[] };
 
-const toBool = (value: unknown) => value === true || value === 1;
+const toBool = (value: unknown) => value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true';
+
+function normalizePublicMenuItem(item: MenuItem, categoryId?: string): MenuItem {
+  return {
+    ...item,
+    category_id: item.category_id ?? categoryId ?? '',
+    price: Number(item.price ?? 0),
+    is_veg: toBool(item.is_veg),
+    is_spicy: toBool(item.is_spicy),
+    is_available: toBool(item.is_available),
+    variants: (item.variants ?? [])
+      .filter((variant) => variant.is_available === undefined || toBool(variant.is_available))
+      .map((variant) => ({
+        ...variant,
+        price: Number(variant.price ?? 0),
+        is_available: variant.is_available === undefined ? true : toBool(variant.is_available),
+      })),
+    addons: (item.addons ?? [])
+      .filter((addon) => addon.is_available === undefined || toBool(addon.is_available))
+      .map((addon) => ({
+        ...addon,
+        price: Number(addon.price ?? 0),
+        is_available: addon.is_available === undefined ? true : toBool(addon.is_available),
+      })),
+  };
+}
 
 export interface CreateOrderPayload {
   items: Array<{
@@ -55,25 +81,11 @@ export const publicOrderService = {
       categories?: PublicMenuCategory[];
       items?: MenuItem[];
     }>(res.data);
-    const categories: PublicMenuCategory[] = data.categories ?? [];
-    const items = data.items ?? categories.flatMap((category) =>
-      (category.items ?? []).map((item) => ({
-        ...item,
-        category_id: item.category_id ?? category.id,
-        price: Number(item.price ?? 0),
-        is_veg: toBool(item.is_veg),
-        is_spicy: toBool(item.is_spicy),
-        is_available: toBool(item.is_available),
-        variants: (item.variants ?? []).map((variant) => ({
-          ...variant,
-          price: Number(variant.price ?? 0),
-        })),
-        addons: (item.addons ?? []).map((addon) => ({
-          ...addon,
-          price: Number(addon.price ?? 0),
-        })),
-      })),
-    );
+    const categories: PublicMenuCategory[] = (data.categories ?? []).map((category) => ({
+      ...category,
+      items: (category.items ?? []).map((item) => normalizePublicMenuItem(item, category.id)),
+    }));
+    const items = data.items?.map((item) => normalizePublicMenuItem(item)) ?? categories.flatMap((category) => category.items ?? []);
 
     return {
       ...data,
