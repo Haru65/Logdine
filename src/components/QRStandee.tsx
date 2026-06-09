@@ -12,6 +12,15 @@ const INK = '#111111';
 const ORANGE = '#d95b28';
 const STANDEE_WIDTH = 1000;
 const STANDEE_HEIGHT = 1450;
+const BULK_CARD_WIDTH_MM = 136.5;
+const BULK_CARD_HEIGHT_MM = 194;
+const BULK_CARD_SCALE = 12;
+const BULK_CARD_WIDTH_PX = Math.round(BULK_CARD_WIDTH_MM * BULK_CARD_SCALE);
+const BULK_CARD_HEIGHT_PX = Math.round(BULK_CARD_HEIGHT_MM * BULK_CARD_SCALE);
+const BULK_CARD_POSITIONS = [
+  { x: 8, y: 8 },
+  { x: 152.5, y: 8 },
+] as const;
 
 interface QRStandeeProps {
   table: RestaurantTable;
@@ -19,6 +28,7 @@ interface QRStandeeProps {
 }
 
 interface StandeeAssets {
+  logo?: HTMLImageElement;
   cup: HTMLImageElement;
   pizza: HTMLImageElement;
   burger: HTMLImageElement;
@@ -32,7 +42,20 @@ interface StandeeAssets {
   qr: HTMLImageElement;
 }
 
+interface BulkStandeeAssets extends Omit<StandeeAssets, 'qr'> {
+  logo: HTMLImageElement;
+}
+
 const getImageUrl = (name: string) => `${ASSET_BASE}/${name}`;
+
+const sanitizeFileName = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'restaurant';
+
+const trimSlash = (value: string) => value.replace(/\/+$/, '');
 
 const loadImage = (src: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
@@ -42,6 +65,17 @@ const loadImage = (src: string) =>
     img.onerror = reject;
     img.src = src;
   });
+
+async function loadImageWithFallback(src: string | undefined, fallback: string) {
+  if (src) {
+    try {
+      return await loadImage(src);
+    } catch (error) {
+      console.warn('Could not load QR standee logo, using default logo:', error);
+    }
+  }
+  return loadImage(fallback);
+}
 
 const createQrDataUrl = (text: string) =>
   new Promise<string>((resolve, reject) => {
@@ -84,6 +118,25 @@ async function loadStandeeAssets(qrDataUrl: string): Promise<StandeeAssets> {
   return { cup, pizza, burger, cupBeans, scan, menu, placeOrder, arrow, heart, logdine, qr };
 }
 
+async function loadBulkStandeeAssets(restaurantLogo?: string): Promise<BulkStandeeAssets> {
+  const [logo, cup, pizza, burger, cupBeans, scan, menu, placeOrder, arrow, heart, logdine] =
+    await Promise.all([
+      loadImageWithFallback(restaurantLogo, getImageUrl('logo.png')),
+      loadImage(getImageUrl('cup.png')),
+      loadImage(getImageUrl('pizza.png')),
+      loadImage(getImageUrl('burger.png')),
+      loadImage(getImageUrl('cup-beans.png')),
+      loadImage(getImageUrl('scan.png')),
+      loadImage(getImageUrl('menu.png')),
+      loadImage(getImageUrl('place-order.png')),
+      loadImage(getImageUrl('arrow.png')),
+      loadImage(getImageUrl('heart.png')),
+      loadImage(getImageUrl('logdine.png')),
+    ]);
+
+  return { logo, cup, pizza, burger, cupBeans, scan, menu, placeOrder, arrow, heart, logdine };
+}
+
 function roundRect(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -103,6 +156,25 @@ function roundRect(
   ctx.lineTo(x, y + radius);
   ctx.quadraticCurveTo(x, y, x + radius, y);
   ctx.closePath();
+}
+
+function mm(value: number) {
+  return value * BULK_CARD_SCALE;
+}
+
+function drawImageContain(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const imageRatio = image.naturalWidth / image.naturalHeight;
+  const boxRatio = width / height;
+  const drawWidth = imageRatio > boxRatio ? width : height * imageRatio;
+  const drawHeight = imageRatio > boxRatio ? width / imageRatio : height;
+  ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
 }
 
 function drawCenteredText(
@@ -183,6 +255,44 @@ function drawHeadline(ctx: CanvasRenderingContext2D, centerX: number, baseline: 
 
   ctx.font = `900 ${toSize}px Arial`;
   ctx.fillText('TO', x, baseline - 3);
+  x += widths.to + gap;
+
+  ctx.font = `900 ${mainSize}px Arial`;
+  ctx.fillStyle = ORANGE;
+  ctx.fillText('ORDER', x, baseline);
+}
+
+function drawBulkHeadline(ctx: CanvasRenderingContext2D, centerX: number, baseline: number, maxWidth: number) {
+  let mainSize = mm(10.5);
+  let toSize = mm(9.2);
+  const gap = mm(2.2);
+  let widths = { scan: 0, to: 0, order: 0 };
+  let totalWidth = 0;
+
+  do {
+    ctx.font = `900 ${mainSize}px Arial`;
+    widths.scan = ctx.measureText('SCAN').width;
+    widths.order = ctx.measureText('ORDER').width;
+    ctx.font = `900 ${toSize}px Arial`;
+    widths.to = ctx.measureText('TO').width;
+    totalWidth = widths.scan + widths.to + widths.order + gap * 2;
+
+    if (totalWidth <= maxWidth) break;
+    mainSize -= mm(0.25);
+    toSize -= mm(0.25);
+  } while (mainSize >= mm(9));
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  let x = centerX - totalWidth / 2;
+  ctx.font = `900 ${mainSize}px Arial`;
+  ctx.fillStyle = INK;
+  ctx.fillText('SCAN', x, baseline);
+  x += widths.scan + gap;
+
+  ctx.font = `900 ${toSize}px Arial`;
+  ctx.fillText('TO', x, baseline - mm(0.4));
   x += widths.to + gap;
 
   ctx.font = `900 ${mainSize}px Arial`;
@@ -286,6 +396,113 @@ function drawStandeeCanvas(
   ctx.drawImage(assets.logdine, 520, 1330, 210, 62);
 }
 
+function drawBulkStandeeCanvas(
+  ctx: CanvasRenderingContext2D,
+  table: RestaurantTable,
+  restaurantName: string,
+  assets: BulkStandeeAssets,
+  qr: HTMLImageElement,
+) {
+  const w = BULK_CARD_WIDTH_PX;
+  const h = BULK_CARD_HEIGHT_PX;
+  const centerX = w / 2;
+  const tableLabel = table.table_number || table.name || table.identifier || 'Table';
+
+  ctx.clearRect(0, 0, w, h);
+  roundRect(ctx, mm(1), mm(1), w - mm(2), h - mm(2), mm(6));
+  ctx.fillStyle = CARD_BG;
+  ctx.fill();
+  ctx.lineWidth = mm(2);
+  ctx.strokeStyle = '#000';
+  ctx.stroke();
+
+  ctx.save();
+  ctx.beginPath();
+  roundRect(ctx, mm(2), mm(2), w - mm(4), h - mm(4), mm(4.5));
+  ctx.clip();
+
+  ctx.globalAlpha = 0.62;
+  drawImageContain(ctx, assets.cup, mm(1), mm(3), mm(28), mm(24));
+  drawImageContain(ctx, assets.pizza, w - mm(32), mm(2), mm(31), mm(28));
+  drawImageContain(ctx, assets.burger, mm(1), mm(92), mm(25), mm(18));
+  drawImageContain(ctx, assets.cupBeans, w - mm(27), mm(92), mm(24), mm(19));
+  ctx.globalAlpha = 1;
+
+  drawImageContain(ctx, assets.logo, centerX - mm(18), mm(5), mm(36), mm(18));
+  ctx.fillStyle = INK;
+  ctx.font = `900 ${mm(3.4)}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.fillText(restaurantName.trim().toUpperCase() || 'RESTAURANT', centerX, mm(26), mm(96));
+
+  const scanBox = { x: mm(12), y: mm(29), w: mm(112.5), h: mm(30) };
+  drawCornerBrackets(ctx, scanBox.x, scanBox.y, scanBox.w, scanBox.h);
+  drawBulkHeadline(ctx, centerX, mm(45.5), mm(108));
+
+  ctx.fillStyle = '#222';
+  ctx.font = `500 ${mm(2.8)}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('DIGITAL MENU  •  FAST SERVICE  •  CONTACTLESS EXPERIENCE', centerX, mm(54), mm(106));
+
+  ctx.fillStyle = INK;
+  ctx.font = `900 ${mm(5)}px Arial`;
+  ctx.fillText(`TABLE ${tableLabel}`, centerX, mm(64), mm(112));
+
+  const qrBox = { x: (w - mm(65)) / 2, y: mm(72), size: mm(65) };
+  roundRect(ctx, qrBox.x, qrBox.y, qrBox.size, qrBox.size, mm(6));
+  ctx.fillStyle = CARD_BG;
+  ctx.fill();
+  ctx.lineWidth = mm(2);
+  ctx.strokeStyle = INK;
+  ctx.stroke();
+  drawImageContain(ctx, qr, qrBox.x + mm(2.5), qrBox.y + mm(2.5), mm(60), mm(60));
+
+  ctx.strokeStyle = '#d4cec4';
+  ctx.lineWidth = mm(0.25);
+  ctx.beginPath();
+  ctx.moveTo(mm(10), mm(145));
+  ctx.lineTo(w - mm(10), mm(145));
+  ctx.stroke();
+
+  const stepY = mm(151);
+  const stepCenters = [mm(30), centerX, w - mm(30)];
+  const stepImgs = [assets.scan, assets.menu, assets.placeOrder];
+  const stepLabels = ['SCAN QR CODE', 'BROWSE MENU', 'PLACE ORDER'];
+  ctx.font = `800 ${mm(3)}px Arial`;
+  ctx.fillStyle = INK;
+  stepCenters.forEach((x, index) => {
+    drawImageContain(ctx, stepImgs[index], x - mm(5), stepY, mm(10), mm(10));
+    ctx.fillText(stepLabels[index], x, stepY + mm(16), mm(34));
+    if (index < 2) {
+      drawImageContain(ctx, assets.arrow, x + mm(17), stepY + mm(3.5), mm(7), mm(5));
+    }
+  });
+
+  const taglineY = mm(175);
+  const taglineParts = [
+    { text: 'GOOD FOOD', x: mm(31) },
+    { text: 'GOOD MOOD', x: centerX },
+    { text: 'GREAT EXPERIENCE', x: w - mm(34) },
+  ];
+  ctx.font = `800 ${mm(2.9)}px Arial`;
+  taglineParts.forEach(({ text, x }) => {
+    const textWidth = ctx.measureText(text).width;
+    drawImageContain(ctx, assets.heart, x - textWidth / 2 - mm(3.6), taglineY - mm(2.6), mm(2.8), mm(2.8));
+    ctx.fillText(text, x, taglineY, mm(42));
+  });
+  drawImageContain(ctx, assets.heart, w - mm(8), taglineY - mm(2.6), mm(2.8), mm(2.8));
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(mm(2), h - mm(14), w - mm(4), mm(12));
+  ctx.fillStyle = '#fff';
+  ctx.font = `400 ${mm(3.2)}px Arial`;
+  ctx.textAlign = 'right';
+  ctx.fillText('Powered By', centerX - mm(3), h - mm(6.2), mm(32));
+  drawImageContain(ctx, assets.logdine, centerX + mm(5), h - mm(11.2), mm(26), mm(7));
+
+  ctx.restore();
+}
+
 async function createStandeeCanvas(table: RestaurantTable, tenant?: Tenant) {
   const cafeName = tenant?.name || 'Your Cafe';
   const qrUrl = getCustomerOrderUrl(table, tenant);
@@ -304,8 +521,37 @@ async function createStandeeCanvas(table: RestaurantTable, tenant?: Tenant) {
   return canvas;
 }
 
-function binaryStringFromBase64(base64: string) {
-  return atob(base64);
+async function createBulkStandeeCanvas(
+  table: RestaurantTable,
+  restaurantName: string,
+  assets: BulkStandeeAssets,
+  baseUrl?: string,
+) {
+  if (!table.identifier) return null;
+
+  const qrUrl = baseUrl
+    ? `${trimSlash(baseUrl)}/${table.identifier}`
+    : table.qr_url || table.qr_code_url || `${trimSlash(window.location.origin)}/m/restaurant/${table.identifier}`;
+  const qrDataUrl = await createQrDataUrl(qrUrl);
+  const qr = await loadImage(qrDataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = BULK_CARD_WIDTH_PX;
+  canvas.height = BULK_CARD_HEIGHT_PX;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  drawBulkStandeeCanvas(ctx, table, restaurantName, assets, qr);
+  return canvas;
+}
+
+function getTenantCustomerBaseUrl(tenant?: Tenant) {
+  if (!tenant?.slug) return undefined;
+  const frontendUrl =
+    import.meta.env.VITE_CUSTOMER_URL ||
+    import.meta.env.VITE_FRONTEND_URL ||
+    window.location.origin;
+  return `${trimSlash(frontendUrl)}/m/${tenant.slug}`;
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -315,56 +561,6 @@ function downloadBlob(blob: Blob, fileName: string) {
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function createPdfFromJpegs(images: string[]) {
-  const objects: string[] = [];
-  const kids: number[] = [];
-
-  objects.push('<< /Type /Catalog /Pages 2 0 R >>');
-  objects.push('');
-
-  images.forEach((imageData, index) => {
-    const pageObj = objects.length + 1;
-    const contentObj = pageObj + 1;
-    const imageObj = pageObj + 2;
-    kids.push(pageObj);
-
-    const base64 = imageData.split(',')[1] || '';
-    const jpg = binaryStringFromBase64(base64);
-    const content = `q\n${STANDEE_WIDTH} 0 0 ${STANDEE_HEIGHT} 0 0 cm\n/Im${index} Do\nQ`;
-
-    objects.push(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${STANDEE_WIDTH} ${STANDEE_HEIGHT}] /Resources << /XObject << /Im${index} ${imageObj} 0 R >> >> /Contents ${contentObj} 0 R >>`,
-    );
-    objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
-    objects.push(
-      `<< /Type /XObject /Subtype /Image /Width ${STANDEE_WIDTH} /Height ${STANDEE_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n${jpg}\nendstream`,
-    );
-  });
-
-  objects[1] = `<< /Type /Pages /Kids [${kids.map((kid) => `${kid} 0 R`).join(' ')}] /Count ${kids.length} >>`;
-
-  let pdf = '%PDF-1.4\n';
-  const offsets = [0];
-  objects.forEach((object, index) => {
-    offsets.push(pdf.length);
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-
-  const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += '0000000000 65535 f \n';
-  offsets.slice(1).forEach((offset) => {
-    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
-  });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-
-  const bytes = new Uint8Array(pdf.length);
-  for (let i = 0; i < pdf.length; i += 1) {
-    bytes[i] = pdf.charCodeAt(i) & 0xff;
-  }
-  return new Blob([bytes], { type: 'application/pdf' });
 }
 
 export async function downloadQrStandeeImage(table: RestaurantTable, tenant?: Tenant) {
@@ -377,18 +573,59 @@ export async function downloadQrStandeeImage(table: RestaurantTable, tenant?: Te
   );
 }
 
-export async function downloadQrStandeePdf(tables: RestaurantTable[], tenant?: Tenant) {
-  const images: string[] = [];
+export async function createBulkQRPDF(
+  tables: RestaurantTable[],
+  restaurantName = 'restaurant',
+  restaurantLogo?: string,
+  baseUrl?: string,
+) {
+  const printableTables = tables.filter((table) => table.identifier);
+  if (!printableTables.length) return false;
 
-  for (const table of tables) {
-    const canvas = await createStandeeCanvas(table, tenant);
-    if (canvas) images.push(canvas.toDataURL('image/jpeg', 0.92));
+  const { default: jsPDF } = await import('jspdf');
+  const pdf = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4',
+  });
+  const assets = await loadBulkStandeeAssets(restaurantLogo);
+  let rendered = 0;
+
+  for (const table of printableTables) {
+    const canvas = await createBulkStandeeCanvas(table, restaurantName, assets, baseUrl);
+    if (!canvas) continue;
+
+    if (rendered > 0 && rendered % 2 === 0) {
+      pdf.addPage('a4', 'landscape');
+    }
+
+    const position = BULK_CARD_POSITIONS[rendered % 2];
+    pdf.addImage(
+      canvas.toDataURL('image/jpeg', 0.94),
+      'JPEG',
+      position.x,
+      position.y,
+      BULK_CARD_WIDTH_MM,
+      BULK_CARD_HEIGHT_MM,
+      undefined,
+      'FAST',
+    );
+    rendered += 1;
   }
 
-  if (!images.length) return false;
+  if (!rendered) return false;
 
-  downloadBlob(createPdfFromJpegs(images), 'table-qr-standees.pdf');
+  pdf.save(`${sanitizeFileName(restaurantName)}-bulk-qr-standees.pdf`);
   return true;
+}
+
+export async function downloadQrStandeePdf(tables: RestaurantTable[], tenant?: Tenant) {
+  return createBulkQRPDF(
+    tables,
+    tenant?.name || 'restaurant',
+    tenant?.logo_url || tenant?.logoUrl || tenant?.logo,
+    getTenantCustomerBaseUrl(tenant),
+  );
 }
 
 export default function QRStandee({ table, className }: QRStandeeProps) {
