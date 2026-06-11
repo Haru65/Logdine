@@ -91,7 +91,7 @@ export default function TablesPage() {
       )}
 
       <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent side="right">
+        <SheetContent side="right" className="overflow-y-auto">
           {selected && <TableEditor table={selected} onClose={() => setSelected(null)} />}
         </SheetContent>
       </Sheet>
