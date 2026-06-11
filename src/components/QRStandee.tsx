@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
+import jsPDF from 'jspdf';
 import { Download, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth.store';
@@ -586,7 +587,6 @@ export async function createBulkQRPDF(
   const printableTables = tables.filter((table) => table.identifier);
   if (!printableTables.length) return false;
 
-  const { default: jsPDF } = await import('jspdf');
   const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
