@@ -99,9 +99,10 @@ const createQrDataUrl = (text: string) =>
     );
   });
 
-async function loadStandeeAssets(qrDataUrl: string): Promise<StandeeAssets> {
-  const [cup, pizza, burger, cupBeans, scan, menu, placeOrder, arrow, heart, logdine, qr] =
+async function loadStandeeAssets(qrDataUrl: string, restaurantLogo?: string): Promise<StandeeAssets> {
+  const [logo, cup, pizza, burger, cupBeans, scan, menu, placeOrder, arrow, heart, logdine, qr] =
     await Promise.all([
+      loadImageWithFallback(restaurantLogo, getImageUrl('logo.png')),
       loadImage(getImageUrl('cup.png')),
       loadImage(getImageUrl('pizza.png')),
       loadImage(getImageUrl('burger.png')),
@@ -115,7 +116,7 @@ async function loadStandeeAssets(qrDataUrl: string): Promise<StandeeAssets> {
       loadImage(qrDataUrl),
     ]);
 
-  return { cup, pizza, burger, cupBeans, scan, menu, placeOrder, arrow, heart, logdine, qr };
+  return { logo, cup, pizza, burger, cupBeans, scan, menu, placeOrder, arrow, heart, logdine, qr };
 }
 
 async function loadBulkStandeeAssets(restaurantLogo?: string): Promise<BulkStandeeAssets> {
@@ -325,26 +326,29 @@ function drawStandeeCanvas(
   ctx.globalAlpha = 1;
 
   const brand = cafeName.trim().toUpperCase() || 'YOUR CAFE';
+  if (assets.logo) {
+    drawImageContain(ctx, assets.logo, 310, 54, 380, 136);
+  }
   ctx.fillStyle = INK;
-  const brandSize = fitFont(ctx, brand, 600, 58, 34, 900);
+  const brandSize = fitFont(ctx, brand, 600, 38, 24, 900);
   ctx.font = `900 ${brandSize}px Arial`;
-  drawCenteredText(ctx, brand, 500, 120, 640);
+  drawCenteredText(ctx, brand, 500, 214, 640);
   ctx.fillStyle = ORANGE;
-  ctx.fillRect(390, 142, 220, 5);
+  ctx.fillRect(390, 232, 220, 5);
 
-  const scanBox = { x: 96, y: 210, w: 808, h: 172 };
+  const scanBox = { x: 96, y: 285, w: 808, h: 172 };
   drawCornerBrackets(ctx, scanBox.x, scanBox.y, scanBox.w, scanBox.h);
-  drawHeadline(ctx, 500, 310, 670);
+  drawHeadline(ctx, 500, 385, 670);
 
   ctx.font = '500 19px Arial';
   ctx.fillStyle = '#222';
-  drawCenteredText(ctx, 'DIGITAL MENU  -  FAST SERVICE  -  CONTACTLESS EXPERIENCE', 500, 360, 680);
+  drawCenteredText(ctx, 'DIGITAL MENU  •  FAST SERVICE  •  CONTACTLESS EXPERIENCE', 500, 435, 680);
 
   ctx.font = '900 30px Arial';
   ctx.fillStyle = INK;
-  drawCenteredText(ctx, `TABLE ${table.table_number}`, 500, 420, 760);
+  drawCenteredText(ctx, `TABLE ${table.table_number}`, 500, 496, 760);
 
-  const qrBox = { x: 270, y: 455, w: 460, h: 460 };
+  const qrBox = { x: 270, y: 528, w: 460, h: 460 };
   roundRect(ctx, qrBox.x, qrBox.y, qrBox.w, qrBox.h, 30);
   ctx.fillStyle = CARD_BG;
   ctx.fill();
@@ -356,11 +360,11 @@ function drawStandeeCanvas(
   ctx.strokeStyle = '#d4cec4';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(108, 990);
-  ctx.lineTo(892, 990);
+  ctx.moveTo(108, 1040);
+  ctx.lineTo(892, 1040);
   ctx.stroke();
 
-  const stepY = 1038;
+  const stepY = 1088;
   const stepXs = [252, 500, 748];
   const stepImgs = [assets.scan, assets.menu, assets.placeOrder];
   const stepLabels = ['SCAN QR CODE', 'BROWSE MENU', 'PLACE ORDER'];
@@ -372,7 +376,7 @@ function drawStandeeCanvas(
     if (index < 2) ctx.drawImage(assets.arrow, x + 92, stepY + 34, 36, 28);
   });
 
-  const tagY = 1236;
+  const tagY = 1266;
   const tagParts = [
     { text: 'GOOD FOOD', x: 250 },
     { text: 'GOOD MOOD', x: 500 },
@@ -509,7 +513,7 @@ async function createStandeeCanvas(table: RestaurantTable, tenant?: Tenant) {
   if (!qrUrl) return null;
 
   const qrDataUrl = await createQrDataUrl(qrUrl);
-  const assets = await loadStandeeAssets(qrDataUrl);
+  const assets = await loadStandeeAssets(qrDataUrl, tenant?.logo_url || tenant?.logoUrl || tenant?.logo);
   const canvas = document.createElement('canvas');
   canvas.width = STANDEE_WIDTH;
   canvas.height = STANDEE_HEIGHT;
@@ -601,8 +605,8 @@ export async function createBulkQRPDF(
 
     const position = BULK_CARD_POSITIONS[rendered % 2];
     pdf.addImage(
-      canvas.toDataURL('image/jpeg', 0.94),
-      'JPEG',
+      canvas.toDataURL('image/png'),
+      'PNG',
       position.x,
       position.y,
       BULK_CARD_WIDTH_MM,
@@ -633,6 +637,7 @@ export default function QRStandee({ table, className }: QRStandeeProps) {
   const [downloading, setDownloading] = useState(false);
   const tenant = useAuthStore((state) => state.user?.tenant);
   const cafeName = tenant?.name || 'Your Cafe';
+  const cafeLogo = tenant?.logo_url || tenant?.logoUrl || tenant?.logo || getImageUrl('logo.png');
 
   const qrUrl = useMemo(() => getCustomerOrderUrl(table, tenant), [table, tenant]);
 
@@ -676,8 +681,9 @@ export default function QRStandee({ table, className }: QRStandeeProps) {
         <img src={getImageUrl('burger.png')} alt="" className="pointer-events-none absolute bottom-[42%] left-1 w-16 opacity-70" />
         <img src={getImageUrl('cup-beans.png')} alt="" className="pointer-events-none absolute bottom-[42%] right-2 w-16 opacity-70" />
 
-        <div className="relative z-10 mx-auto mt-1 max-w-[72%]">
-          <p className="truncate text-[22px] font-black uppercase leading-tight tracking-normal text-black">{cafeName}</p>
+        <div className="relative z-10 mx-auto mt-1 flex max-w-[76%] flex-col items-center">
+          <img src={cafeLogo} alt={`${cafeName} logo`} className="max-h-16 w-44 object-contain" />
+          <p className="mt-2 max-w-full truncate text-[15px] font-black uppercase leading-tight tracking-normal text-black">{cafeName}</p>
           <div className="mx-auto mt-1 h-0.5 w-24 bg-[#d95b28]" />
         </div>
 
