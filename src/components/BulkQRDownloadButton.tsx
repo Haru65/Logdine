@@ -22,7 +22,9 @@ function compareTablesAsc(a: RestaurantTable, b: RestaurantTable) {
 export default function BulkQRDownloadButton({ tables = [] }: BulkQRDownloadButtonProps) {
   const [downloading, setDownloading] = useState(false);
   const tenant = useAuthStore((state) => state.user?.tenant);
-  const downloadableTables = tables.filter((table) => table.identifier).sort(compareTablesAsc);
+  const downloadableTables = tables
+    .filter((table) => table.qr_token || table.qrToken)
+    .sort(compareTablesAsc);
 
   async function handleDownload() {
     if (!downloadableTables.length) {

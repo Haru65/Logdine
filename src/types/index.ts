@@ -106,6 +106,8 @@ export interface RestaurantTable {
   tenant_id: string;
   name?: string;
   identifier?: string;
+  qr_token?: string;
+  qrToken?: string;
   table_number: string;
   capacity: number;
   status: TableStatus;

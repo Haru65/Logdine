@@ -75,8 +75,8 @@ export const publicOrderService = {
     return unwrap(res.data);
   },
 
-  async getMenu(slug: string, table: string): Promise<PublicMenuResponse> {
-    const res = await apiClient.get(endpoints.public.menu(slug, table));
+  async getMenu(slug: string, qrToken: string): Promise<PublicMenuResponse> {
+    const res = await apiClient.get(endpoints.public.menu(slug, qrToken));
     const data = unwrap<Omit<PublicMenuResponse, 'categories' | 'items'> & {
       categories?: PublicMenuCategory[];
       items?: MenuItem[];
@@ -91,7 +91,7 @@ export const publicOrderService = {
       ...data,
       table: {
         ...data.table,
-        table_number: data.table.table_number ?? data.table.name ?? data.table.identifier ?? table,
+        table_number: data.table.table_number ?? data.table.name ?? 'Table',
         status: data.table.status ?? 'available',
         capacity: Number(data.table.capacity ?? 4),
       },
@@ -100,13 +100,13 @@ export const publicOrderService = {
     };
   },
 
-  async getTableOrders(slug: string, table: string): Promise<Order[]> {
-    const res = await apiClient.get(endpoints.public.tableOrders(slug, table));
+  async getTableOrders(slug: string, qrToken: string): Promise<Order[]> {
+    const res = await apiClient.get(endpoints.public.tableOrders(slug, qrToken));
     return unwrap<Order[]>(res.data);
   },
 
-  async createOrder(slug: string, table: string, payload: CreateOrderPayload): Promise<Order> {
-    const res = await apiClient.post(endpoints.public.order(slug, table), payload);
+  async createOrder(slug: string, qrToken: string, payload: CreateOrderPayload): Promise<Order> {
+    const res = await apiClient.post(endpoints.public.order(slug, qrToken), payload);
     return unwrap<Order>(res.data);
   },
 

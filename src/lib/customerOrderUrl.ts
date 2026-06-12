@@ -15,7 +15,8 @@ const slugFromQrUrl = (url?: string) => {
 };
 
 export function getCustomerOrderUrl(table: RestaurantTable, tenant?: Tenant) {
-  if (!table.identifier) return '';
+  const qrToken = table.qr_token || table.qrToken;
+  if (!qrToken) return '';
 
   const frontendUrl =
     import.meta.env.VITE_CUSTOMER_URL ||
@@ -24,5 +25,5 @@ export function getCustomerOrderUrl(table: RestaurantTable, tenant?: Tenant) {
 
   const slug = tenant?.slug || slugFromQrUrl(table.qr_url || table.qr_code_url) || 'restaurant';
 
-  return `${trimSlash(frontendUrl)}/m/${slug}/${table.identifier}`;
+  return `${trimSlash(frontendUrl)}/m/${slug}/${qrToken}`;
 }

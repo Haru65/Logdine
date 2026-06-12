@@ -23,8 +23,8 @@ export default function QRCodeDisplay({
   const authStore = useAuthStore();
 
   useEffect(() => {
-    // Build the QR URL from table identifier
-    if (table.identifier && canvasRef.current) {
+    // Build the QR URL from the server-generated QR token.
+    if ((table.qr_token || table.qrToken) && canvasRef.current) {
       const url = getCustomerOrderUrl(table, authStore.user?.tenant);
       
       // Generate QR code on canvas
@@ -47,7 +47,7 @@ export default function QRCodeDisplay({
     }
   }, [table, authStore.user?.tenant, size, level, includeMargin]);
 
-  if (!table.identifier) {
+  if (!(table.qr_token || table.qrToken)) {
     return (
       <div className={`grid place-items-center rounded border border-dashed border-border bg-muted/50`}
         style={{ width: size, height: size }}

@@ -181,6 +181,8 @@ export const restaurantService = {
       table_number: t.name || t.table_number, // Map name to table_number
       capacity: t.capacity || 4,
       status: t.status || 'available',
+      qr_token: t.qr_token ?? t.qrToken,
+      qrToken: t.qrToken ?? t.qr_token,
       qr_code_url: t.qr_url, // Map qr_url to qr_code_url
       qr_url: t.qr_url,
       zone: t.zone,

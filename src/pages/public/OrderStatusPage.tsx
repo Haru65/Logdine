@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { CheckCircle2, ChefHat, Clock, Soup, Utensils, Home } from 'lucide-react';
@@ -29,6 +29,7 @@ const stageIndex: Record<OrderStatus, number> = {
 
 export default function OrderStatusPage() {
   const { slug = '', orderId = '' } = useParams();
+  const navigate = useNavigate();
 
   const { data: order, isLoading } = useQuery({
     queryKey: qk.publicOrder(slug, orderId),
@@ -132,10 +133,8 @@ export default function OrderStatusPage() {
           </CardContent>
         </Card>
 
-        <Button asChild variant="outline" className="w-full gap-1.5">
-          <Link to={`/m/${slug}/${order.table_id}`}>
-            <Home className="size-4" /> Back to menu
-          </Link>
+        <Button type="button" variant="outline" className="w-full gap-1.5" onClick={() => navigate(-1)}>
+          <Home className="size-4" /> Back to menu
         </Button>
       </main>
     </div>

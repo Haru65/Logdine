@@ -532,11 +532,12 @@ async function createBulkStandeeCanvas(
   assets: BulkStandeeAssets,
   baseUrl?: string,
 ) {
-  if (!table.identifier) return null;
+  const qrToken = table.qr_token || table.qrToken;
+  if (!qrToken) return null;
 
   const qrUrl = baseUrl
-    ? `${trimSlash(baseUrl)}/${table.identifier}`
-    : table.qr_url || table.qr_code_url || `${trimSlash(window.location.origin)}/m/restaurant/${table.identifier}`;
+    ? `${trimSlash(baseUrl)}/${qrToken}`
+    : table.qr_url || table.qr_code_url || `${trimSlash(window.location.origin)}/m/restaurant/${qrToken}`;
   const qrDataUrl = await createQrDataUrl(qrUrl);
   const qr = await loadImage(qrDataUrl);
   const canvas = document.createElement('canvas');
@@ -584,7 +585,7 @@ export async function createBulkQRPDF(
   restaurantLogo?: string,
   baseUrl?: string,
 ) {
-  const printableTables = tables.filter((table) => table.identifier);
+  const printableTables = tables.filter((table) => table.qr_token || table.qrToken);
   if (!printableTables.length) return false;
 
   const pdf = new jsPDF({

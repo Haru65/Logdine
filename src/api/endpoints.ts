@@ -79,10 +79,10 @@ export const endpoints = {
   }),
   public: {
     health: '/api/public/health',
-    menu: (slug: string, table: string) => `/api/public/menu/${slug}/${table}`,
-    order: (slug: string, table: string) => `/api/public/order/${slug}/${table}`,
+    menu: (slug: string, qrToken: string) => `/api/public/menu/${slug}/${qrToken}`,
+    order: (slug: string, qrToken: string) => `/api/public/order/${slug}/${qrToken}`,
     orderStatus: (slug: string, orderId: string) => `/api/public/order/${slug}/${orderId}`,
-    tableOrders: (slug: string, table: string) => `/api/public/table-orders/${slug}/${table}`,
+    tableOrders: (slug: string, qrToken: string) => `/api/public/table-orders/${slug}/${qrToken}`,
     paymentCreate: '/api/public/payment/create-order',
     paymentVerify: '/api/public/payment/verify',
     paymentWebhook: '/api/public/payment/webhook',
