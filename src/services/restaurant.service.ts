@@ -536,6 +536,8 @@ export const restaurantService = {
     const res = await apiClient.post(endpoints.restaurant(tenantId).importExtracted, {
       items,
       ...options,
+    }, {
+      timeout: MENU_AI_TIMEOUT_MS,
     });
     return unwrap<unknown>(res.data);
   },
