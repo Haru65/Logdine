@@ -11,6 +11,7 @@ import type {
   MenuItem,
   MenuVariant,
   OrderStatus,
+  PaymentStatus,
   PaymentConfig,
   PaymentProvider,
   RestaurantTable,
@@ -258,6 +259,27 @@ export function useUpdateOrderStatus() {
     onError: (error: any) => {
       console.error('Error updating order status:', error);
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to update order status';
+      toast.error(errorMessage);
+    },
+  });
+}
+
+export function useUpdateOrderPaymentStatus() {
+  const tenantId = useTenantId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, paymentStatus }: { orderId: string; paymentStatus: PaymentStatus }) =>
+      restaurantService.updateOrderPaymentStatus(requireTenantId(tenantId), orderId, paymentStatus),
+    onSuccess: () => {
+      if (tenantId) {
+        qc.invalidateQueries({ queryKey: ['orders', tenantId] });
+        qc.invalidateQueries({ queryKey: qk.dashboard(tenantId) });
+      }
+      toast.success('Payment marked as received');
+    },
+    onError: (error: any) => {
+      console.error('Error updating payment status:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to update payment status';
       toast.error(errorMessage);
     },
   });

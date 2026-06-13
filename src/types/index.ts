@@ -176,6 +176,14 @@ export interface DashboardMetrics {
   total_orders: number;
   avg_order_value: number;
   unpaid_bills: number;
+  today_revenue?: number;
+  yesterday_revenue?: number;
+  revenue_growth_percent?: number | null;
+  today_orders?: number;
+  yesterday_orders?: number;
+  orders_growth_percent?: number | null;
+  avg_order_value_delta?: number;
+  avg_order_value_growth_percent?: number | null;
   pending_kitchen: number;
   preparing_kitchen: number;
   ready_kitchen: number;

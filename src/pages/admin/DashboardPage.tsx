@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
+  ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
   ChefHat,
@@ -27,7 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardMetrics, useTables } from '@/hooks/useRestaurant';
 import { useAuthStore } from '@/store/auth.store';
-import { formatCurrency, formatCompact, formatDate } from '@/lib/utils';
+import { cn, formatCurrency, formatCompact, formatDate } from '@/lib/utils';
 import type { TableStatus } from '@/types';
 
 const statusStyles: Record<TableStatus, { dot: string; label: string; ring: string }> = {
@@ -43,12 +44,51 @@ const mockTrend = Array.from({ length: 7 }).map((_, i) => ({
   value: 1200 + Math.round(Math.sin(i) * 400 + Math.random() * 600 + i * 200),
 }));
 
+type KpiDelta = {
+  label: string;
+  tone: 'positive' | 'negative' | 'neutral' | 'warning';
+};
+
+function formatPercentDelta(value?: number | null): KpiDelta {
+  if (value === null) return { label: 'New today', tone: 'positive' };
+  if (value === undefined || Math.abs(value) < 0.05) return { label: 'No change', tone: 'neutral' };
+  const sign = value > 0 ? '+' : '';
+  return {
+    label: `${sign}${value.toFixed(1)}% vs yesterday`,
+    tone: value > 0 ? 'positive' : 'negative',
+  };
+}
+
+function formatCountDelta(today?: number, growth?: number | null): KpiDelta {
+  const count = today ?? 0;
+  const growthText = growth === null ? 'new' : growth === undefined || Math.abs(growth) < 0.05 ? 'flat' : `${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
+  return {
+    label: `${count} today · ${growthText}`,
+    tone: growth === null || (growth ?? 0) > 0 ? 'positive' : (growth ?? 0) < 0 ? 'negative' : 'neutral',
+  };
+}
+
+function formatCurrencyDelta(value?: number): KpiDelta {
+  const delta = value ?? 0;
+  if (Math.abs(delta) < 0.01) return { label: 'No change', tone: 'neutral' };
+  return {
+    label: `${delta > 0 ? '+' : '-'}${formatCurrency(Math.abs(delta))} vs yesterday`,
+    tone: delta > 0 ? 'positive' : 'negative',
+  };
+}
+
 export default function DashboardPage() {
   const { data: metrics, isLoading } = useDashboardMetrics();
   const { data: tables, isLoading: tablesLoading } = useTables();
   const user = useAuthStore((s) => s.user);
 
   const trend = metrics?.revenue_trend?.length ? metrics.revenue_trend : mockTrend;
+  const revenueDelta = formatPercentDelta(metrics?.revenue_growth_percent);
+  const ordersDelta = formatCountDelta(metrics?.today_orders, metrics?.orders_growth_percent);
+  const avgOrderDelta = formatCurrencyDelta(metrics?.avg_order_value_delta);
+  const unpaidDelta: KpiDelta = metrics?.unpaid_bills
+    ? { label: `${metrics.unpaid_bills} awaiting payment`, tone: 'warning' }
+    : { label: 'All clear', tone: 'positive' };
 
   return (
     <div className="container space-y-6 py-6 lg:py-8">
@@ -91,28 +131,28 @@ export default function DashboardPage() {
           label="Total Revenue"
           value={isLoading ? null : formatCurrency(metrics?.total_revenue ?? 0)}
           accent="from-emerald-500/20 to-emerald-500/5 text-emerald-600"
-          delta="+12.4%"
+          delta={isLoading ? undefined : revenueDelta}
         />
         <KpiCard
           icon={<ShoppingBag className="size-5" />}
           label="Total Orders"
           value={isLoading ? null : formatCompact(metrics?.total_orders ?? 0)}
           accent="from-sky-500/20 to-sky-500/5 text-sky-600"
-          delta="+8 today"
+          delta={isLoading ? undefined : ordersDelta}
         />
         <KpiCard
           icon={<TrendingUp className="size-5" />}
           label="Avg Order Value"
           value={isLoading ? null : formatCurrency(metrics?.avg_order_value ?? 0)}
           accent="from-violet-500/20 to-violet-500/5 text-violet-600"
-          delta="+₹24"
+          delta={isLoading ? undefined : avgOrderDelta}
         />
         <KpiCard
           icon={<CreditCard className="size-5" />}
           label="Unpaid Bills"
           value={isLoading ? null : String(metrics?.unpaid_bills ?? 0)}
           accent="from-amber-500/20 to-amber-500/5 text-amber-600"
-          delta={metrics?.unpaid_bills ? 'Action needed' : 'All clear'}
+          delta={isLoading ? undefined : unpaidDelta}
         />
       </section>
 
@@ -315,8 +355,16 @@ function KpiCard({
   label: string;
   value: string | null;
   accent: string;
-  delta?: string;
+  delta?: KpiDelta;
 }) {
+  const deltaStyles = {
+    positive: 'text-emerald-600',
+    negative: 'text-red-600',
+    neutral: 'text-muted-foreground',
+    warning: 'text-amber-600',
+  }[delta?.tone ?? 'neutral'];
+  const DeltaIcon = delta?.tone === 'negative' ? ArrowDownRight : ArrowUpRight;
+
   return (
     <Card className="relative overflow-hidden">
       <div className={`absolute -right-6 -top-6 size-24 rounded-full bg-gradient-to-br ${accent} blur-xl opacity-50`} />
@@ -337,9 +385,9 @@ function KpiCard({
           )}
         </div>
         {delta && (
-          <div className="mt-2 flex items-center gap-1 text-xs font-medium text-emerald-600">
-            <ArrowUpRight className="size-3" />
-            {delta}
+          <div className={cn('mt-2 flex items-center gap-1 text-xs font-medium', deltaStyles)}>
+            <DeltaIcon className="size-3" />
+            {delta.label}
           </div>
         )}
       </CardContent>

@@ -6,6 +6,8 @@ import {
   Flame,
   Soup,
   ArrowRight,
+  Banknote,
+  Smartphone,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -14,9 +16,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useOrders, useUpdateOrderStatus } from '@/hooks/useRestaurant';
+import { useOrders, useUpdateOrderPaymentStatus, useUpdateOrderStatus } from '@/hooks/useRestaurant';
 import { cn, timeAgo, formatCurrency } from '@/lib/utils';
-import type { Order, OrderStatus } from '@/types';
+import type { Order, OrderStatus, PaymentMethod, PaymentStatus } from '@/types';
 
 interface Column {
   status: OrderStatus;
@@ -89,6 +91,7 @@ function playKitchenChime() {
 export default function KDSPage() {
   const { data: orders, isLoading } = useOrders();
   const updateStatus = useUpdateOrderStatus();
+  const updatePayment = useUpdateOrderPaymentStatus();
   const [autoRefresh] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(
     () => localStorage.getItem('restrohub.kdsSoundEnabled') === 'true',
@@ -240,8 +243,12 @@ export default function KDSPage() {
                         next={col.next}
                         nextLabel={col.nextLabel}
                         isLoading={updateStatus.isPending}
+                        isPaymentLoading={updatePayment.isPending}
                         onAdvance={(status) =>
                           updateStatus.mutate({ orderId: order.id, status })
+                        }
+                        onApproveCashPayment={() =>
+                          updatePayment.mutate({ orderId: order.id, paymentStatus: 'paid' })
                         }
                       />
                     ))}
@@ -256,22 +263,41 @@ export default function KDSPage() {
   );
 }
 
+function isPaid(status: PaymentStatus) {
+  return status === 'paid';
+}
+
+function paymentMethodLabel(method?: PaymentMethod) {
+  if (method === 'upi' || method === 'online') return 'UPI';
+  if (method === 'cash') return 'Cash';
+  if (method === 'card') return 'Card';
+  return 'Payment';
+}
+
 function OrderTicket({
   order,
   next,
   nextLabel,
   isLoading,
+  isPaymentLoading,
   onAdvance,
+  onApproveCashPayment,
 }: {
   order: Order;
   next?: OrderStatus;
   nextLabel?: string;
   isLoading?: boolean;
+  isPaymentLoading?: boolean;
   onAdvance: (s: OrderStatus) => void;
+  onApproveCashPayment: () => void;
 }) {
   // Tickets older than 10 min in pending/preparing get "urgent" treatment.
   const ageMs = Date.now() - new Date(order.created_at).getTime();
   const urgent = (order.status === 'pending' || order.status === 'preparing') && ageMs > 10 * 60_000;
+  const paid = isPaid(order.payment_status);
+  const methodLabel = paymentMethodLabel(order.payment_method);
+  const isCash = order.payment_method === 'cash' || !order.payment_method;
+  const needsCashApproval = isCash && !paid;
 
   return (
     <motion.div
@@ -297,6 +323,18 @@ function OrderTicket({
                 <Flame className="size-3" /> Late
               </Badge>
             )}
+            <Badge
+              variant={paid ? 'default' : 'outline'}
+              className={cn(
+                'gap-1 text-[10px]',
+                paid
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-600'
+                  : 'border-amber-500/50 text-amber-700 dark:text-amber-300',
+              )}
+            >
+              {isCash ? <Banknote className="size-3" /> : <Smartphone className="size-3" />}
+              {methodLabel} {paid ? (isCash ? 'approved' : 'paid') : 'pending'}
+            </Badge>
           </div>
           <span className="text-xs font-medium text-muted-foreground">
             {timeAgo(order.created_at)}
@@ -329,6 +367,19 @@ function OrderTicket({
             <p className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
               📝 {order.notes}
             </p>
+          )}
+
+          {needsCashApproval && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isPaymentLoading}
+              onClick={onApproveCashPayment}
+              className="mt-3 w-full justify-center gap-2 border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+            >
+              <Banknote className="size-4" />
+              {isPaymentLoading ? 'Approving...' : 'Approve cash payment'}
+            </Button>
           )}
 
           {next && (

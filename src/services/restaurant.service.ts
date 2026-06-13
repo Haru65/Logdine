@@ -13,6 +13,7 @@ import type {
   OrderStatus,
   PaymentConfig,
   PaymentProvider,
+  PaymentStatus,
   ProductReport,
   RestaurantTable,
   RevenueReport,
@@ -21,6 +22,14 @@ import type {
 } from '@/types';
 
 const MENU_AI_TIMEOUT_MS = 600_000;
+
+function normalizePaymentMethod(raw: unknown): Order['payment_method'] {
+  const value = String(raw ?? '').toLowerCase();
+  if (!value) return undefined;
+  if (value === 'paytm' || value === 'razorpay' || value === 'online') return 'upi';
+  if (value === 'cash' || value === 'card' || value === 'upi') return value;
+  return 'online';
+}
 
 function normalizeOrder(raw: unknown): Order {
   const order = raw as Record<string, any>;
@@ -35,7 +44,7 @@ function normalizeOrder(raw: unknown): Order {
     type: order.type ?? (order.source_type === 'delivery' ? 'delivery' : order.source_type === 'take_away' ? 'take_away' : 'dine_in'),
     status: status ?? 'pending',
     payment_status: paymentStatus === 'completed' ? 'paid' : paymentStatus,
-    payment_method: order.payment_method ?? order.paymentMethod ?? order.payment_provider,
+    payment_method: normalizePaymentMethod(order.payment_method ?? order.paymentMethod ?? order.payment_provider),
     total_amount: Number(order.total_amount ?? order.totalAmount ?? order.total ?? 0),
     tax_amount: Number(order.tax_amount ?? order.taxAmount ?? 0),
     discount_amount: Number(order.discount_amount ?? order.discountAmount ?? 0),
@@ -334,6 +343,17 @@ export const restaurantService = {
   async updateOrderStatus(tenantId: string, orderId: string, status: OrderStatus): Promise<Order> {
     const apiStatus = status === 'preparing' ? 'cooking' : status;
     const res = await apiClient.patch(endpoints.restaurant(tenantId).order(orderId), { status: apiStatus });
+    return normalizeOrder(unwrap<unknown>(res.data));
+  },
+
+  async updateOrderPaymentStatus(
+    tenantId: string,
+    orderId: string,
+    paymentStatus: PaymentStatus,
+  ): Promise<Order> {
+    const res = await apiClient.patch(endpoints.restaurant(tenantId).orderPayment(orderId), {
+      payment_status: paymentStatus,
+    });
     return normalizeOrder(unwrap<unknown>(res.data));
   },
 
