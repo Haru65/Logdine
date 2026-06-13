@@ -81,71 +81,73 @@ export default function MenuPage() {
   }, [items, activeCat, search]);
 
   return (
-    <div className="container py-6 lg:py-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 font-serif text-3xl font-bold tracking-tight">
+    <div className="container max-w-full overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6 lg:py-8">
+      <div className="mb-5 flex flex-col gap-3 sm:mb-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 font-serif text-2xl font-bold tracking-tight sm:text-3xl">
             <UtensilsCrossed className="size-6 text-primary" />
-            Menu Management
+            <span className="min-w-0 truncate">Menu Management</span>
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Edit categories, items, prices, addons, and availability.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-1.5" onClick={() => navigate('/menu/extraction')}>
+        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3 lg:flex lg:shrink-0">
+          <Button variant="outline" className="min-w-0 gap-1.5" onClick={() => navigate('/menu/extraction')}>
             <Wand2 className="size-4" /> AI extract
           </Button>
-          <Button variant="outline" className="gap-1.5" onClick={() => setBulkOpen(true)}>
+          <Button variant="outline" className="min-w-0 gap-1.5" onClick={() => setBulkOpen(true)}>
             <Plus className="size-4" /> Bulk import
           </Button>
-          <Button className="gap-1.5" onClick={() => setCreateOpen(true)}>
+          <Button className="min-w-0 gap-1.5" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" /> Add item
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
         {/* Categories rail */}
-        <aside className="space-y-1.5">
-          <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        <aside className="min-w-0 space-y-1.5">
+          <p className="px-1 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground sm:px-3">
             Categories
           </p>
-          <button
-            onClick={() => setActiveCat('all')}
-            className={cn(
-              'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              activeCat === 'all' ? 'bg-primary/10 text-primary' : 'hover:bg-accent',
-            )}
-          >
-            <span>All items</span>
-            <Badge variant="secondary">{items.length}</Badge>
-          </button>
-          {catsLoading
-            ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-9 rounded-lg" />)
-            : categories.map((c) => {
-                const count = items.filter((it) => it.category_id === c.id).length;
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => setActiveCat(c.id)}
-                    className={cn(
-                      'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                      activeCat === c.id ? 'bg-primary/10 text-primary' : 'hover:bg-accent',
-                    )}
-                  >
-                    <span className="truncate">{c.name}</span>
-                    <Badge variant="secondary">{count}</Badge>
-                  </button>
-                );
-              })}
+          <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 lg:mx-0 lg:block lg:space-y-1.5 lg:overflow-visible lg:px-0 lg:pb-0">
+            <button
+              onClick={() => setActiveCat('all')}
+              className={cn(
+                'flex shrink-0 items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors lg:w-full lg:shrink',
+                activeCat === 'all' ? 'bg-primary/10 text-primary' : 'hover:bg-accent',
+              )}
+            >
+              <span className="whitespace-nowrap">All items</span>
+              <Badge variant="secondary">{items.length}</Badge>
+            </button>
+            {catsLoading
+              ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-9 w-28 shrink-0 rounded-lg lg:w-full" />)
+              : categories.map((c) => {
+                  const count = items.filter((it) => it.category_id === c.id).length;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setActiveCat(c.id)}
+                      className={cn(
+                        'flex max-w-[180px] shrink-0 items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors lg:w-full lg:max-w-none lg:shrink',
+                        activeCat === c.id ? 'bg-primary/10 text-primary' : 'hover:bg-accent',
+                      )}
+                    >
+                      <span className="truncate">{c.name}</span>
+                      <Badge variant="secondary">{count}</Badge>
+                    </button>
+                  );
+                })}
+          </div>
           <Button variant="ghost" size="sm" className="mt-2 w-full justify-start gap-1.5 text-muted-foreground">
             <Plus className="size-3.5" /> New category
           </Button>
         </aside>
 
         {/* Items area */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -157,14 +159,14 @@ export default function MenuPage() {
           </div>
 
           {itemsLoading ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <Skeleton key={i} className="h-48 rounded-2xl" />
               ))}
             </div>
           ) : filtered.length === 0 ? (
             <Card>
-              <CardContent className="grid place-items-center gap-2 p-12 text-center">
+              <CardContent className="grid place-items-center gap-2 px-4 py-10 text-center sm:p-12">
                 <Sparkles className="size-8 text-muted-foreground" />
                 <p className="font-serif text-lg font-semibold">No items here yet</p>
                 <p className="text-sm text-muted-foreground">
@@ -176,7 +178,7 @@ export default function MenuPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {filtered.map((item) => (
                 <ItemRow
                   key={item.id}
@@ -196,7 +198,7 @@ export default function MenuPage() {
       </div>
 
       <Sheet open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
-        <SheetContent side="right" className="overflow-y-auto">
+        <SheetContent side="right" className="w-full max-w-full overflow-y-auto sm:w-3/4 sm:max-w-md">
           {editingItem && (
             <MenuItemEditor
               key={editingItem.id}
@@ -209,7 +211,7 @@ export default function MenuPage() {
       </Sheet>
 
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
-        <SheetContent side="right" className="overflow-y-auto">
+        <SheetContent side="right" className="w-full max-w-full overflow-y-auto sm:w-3/4 sm:max-w-md">
           <MenuItemEditor
             key={`new-${defaultCategoryId ?? 'none'}`}
             categories={categories}
@@ -220,7 +222,7 @@ export default function MenuPage() {
       </Sheet>
 
       <Sheet open={bulkOpen} onOpenChange={setBulkOpen}>
-        <SheetContent side="right" className="overflow-y-auto">
+        <SheetContent side="right" className="w-full max-w-full overflow-y-auto sm:w-3/4 sm:max-w-md">
           <BulkImportPanel
             categories={categories}
             defaultCategoryId={defaultCategoryId}
@@ -436,7 +438,7 @@ function MenuItemEditor({
       <SheetHeader>
         <SheetTitle>{isEditing ? 'Edit menu item' : 'Add menu item'}</SheetTitle>
       </SheetHeader>
-      <div className="space-y-4 p-6">
+      <div className="space-y-4 px-4 py-5 sm:p-6">
         <div className="space-y-1.5">
           <Label>Name</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -463,7 +465,7 @@ function MenuItemEditor({
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Price</Label>
             <Input type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
@@ -548,7 +550,7 @@ function MenuItemEditor({
           <Input placeholder="bestseller, new, chef special" value={tags} onChange={(e) => setTags(e.target.value)} />
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
           <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
             <span>Vegetarian</span>
             <input
@@ -594,7 +596,7 @@ function MenuItemEditor({
           namePlaceholder="Extra cheese"
         />
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-col gap-2 pt-2 min-[420px]:flex-row">
           <Button
             className="flex-1"
             disabled={!canSave}
@@ -643,7 +645,7 @@ function OptionEditor({
       ) : (
         <div className="space-y-2">
           {rows.map((row, index) => (
-            <div key={index} className="grid grid-cols-[1fr_96px_auto_auto] items-center gap-2">
+            <div key={index} className="grid grid-cols-1 items-center gap-2 min-[460px]:grid-cols-[minmax(0,1fr)_88px_auto_auto]">
               <Input
                 placeholder={namePlaceholder}
                 value={row.name}
@@ -656,7 +658,7 @@ function OptionEditor({
                 value={row.price}
                 onChange={(e) => onChange(rows.map((r, i) => (i === index ? { ...r, price: e.target.value } : r)))}
               />
-              <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border px-2 text-xs">
+              <label className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-border px-2 text-xs">
                 <input
                   type="checkbox"
                   checked={row.is_available}
@@ -704,7 +706,7 @@ function BulkImportPanel({
       <SheetHeader>
         <SheetTitle>Bulk import items</SheetTitle>
       </SheetHeader>
-      <div className="space-y-4 p-6">
+      <div className="space-y-4 px-4 py-5 sm:p-6">
         <div className="space-y-1.5">
           <Label>Category</Label>
           <select
@@ -728,7 +730,7 @@ function BulkImportPanel({
         <div className="rounded-lg bg-muted/40 p-3 text-sm">
           {parsed.length} valid item{parsed.length === 1 ? '' : 's'} ready to import
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 min-[420px]:flex-row">
           <Button
             className="flex-1"
             disabled={!categoryId || parsed.length === 0}

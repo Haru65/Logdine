@@ -6,8 +6,10 @@ import {
   Flame,
   Soup,
   ArrowRight,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -52,10 +54,48 @@ const columns: Column[] = [
   },
 ];
 
+function playKitchenChime() {
+  const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextClass) return Promise.resolve();
+
+  const audio = new AudioContextClass();
+  const playTone = (frequency: number, start: number, duration: number) => {
+    const oscillator = audio.createOscillator();
+    const gain = audio.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(frequency, audio.currentTime + start);
+    gain.gain.setValueAtTime(0.0001, audio.currentTime + start);
+    gain.gain.exponentialRampToValueAtTime(0.16, audio.currentTime + start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + start + duration);
+
+    oscillator.connect(gain);
+    gain.connect(audio.destination);
+    oscillator.start(audio.currentTime + start);
+    oscillator.stop(audio.currentTime + start + duration + 0.03);
+  };
+
+  playTone(740, 0, 0.16);
+  playTone(988, 0.18, 0.22);
+
+  return new Promise<void>((resolve) => {
+    window.setTimeout(() => {
+      void audio.close();
+      resolve();
+    }, 520);
+  });
+}
+
 export default function KDSPage() {
   const { data: orders, isLoading } = useOrders();
   const updateStatus = useUpdateOrderStatus();
   const [autoRefresh] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(
+    () => localStorage.getItem('restrohub.kdsSoundEnabled') === 'true',
+  );
+  const [soundBlocked, setSoundBlocked] = useState(false);
+  const knownOrderIds = useRef<Set<string>>(new Set());
+  const initializedOrders = useRef(false);
 
   const grouped = useMemo(() => {
     const map: Record<OrderStatus, Order[]> = {
@@ -75,6 +115,50 @@ export default function KDSPage() {
     return map;
   }, [orders]);
 
+  useEffect(() => {
+    if (!orders) return;
+
+    const incomingOrders = orders.filter((order) => order.status === 'pending' || order.status === 'confirmed');
+    const incomingIds = new Set(incomingOrders.map((order) => order.id));
+
+    if (!initializedOrders.current) {
+      knownOrderIds.current = new Set((orders ?? []).map((order) => order.id));
+      initializedOrders.current = true;
+      return;
+    }
+
+    const hasNewIncomingOrder = incomingOrders.some((order) => !knownOrderIds.current.has(order.id));
+    knownOrderIds.current = new Set((orders ?? []).map((order) => order.id));
+
+    if (!hasNewIncomingOrder || !soundEnabled || incomingIds.size === 0) return;
+
+    playKitchenChime().catch(() => {
+      setSoundBlocked(true);
+      setSoundEnabled(false);
+      localStorage.setItem('restrohub.kdsSoundEnabled', 'false');
+    });
+  }, [orders, soundEnabled]);
+
+  const enableSound = () => {
+    playKitchenChime()
+      .then(() => {
+        setSoundEnabled(true);
+        setSoundBlocked(false);
+        localStorage.setItem('restrohub.kdsSoundEnabled', 'true');
+      })
+      .catch(() => {
+        setSoundBlocked(true);
+        setSoundEnabled(false);
+        localStorage.setItem('restrohub.kdsSoundEnabled', 'false');
+      });
+  };
+
+  const disableSound = () => {
+    setSoundEnabled(false);
+    setSoundBlocked(false);
+    localStorage.setItem('restrohub.kdsSoundEnabled', 'false');
+  };
+
   return (
     <div className="container py-6 lg:py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -87,20 +171,38 @@ export default function KDSPage() {
             Live order queue · Auto-refreshing every 15s
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-medium">
-          <span
-            className={cn(
-              'relative inline-flex size-2 rounded-full',
-              autoRefresh ? 'bg-emerald-500' : 'bg-muted-foreground',
-            )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant={soundEnabled ? 'soft' : 'outline'}
+            size="sm"
+            className="gap-1.5"
+            onClick={soundEnabled ? disableSound : enableSound}
           >
-            {autoRefresh && (
-              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/60" />
-            )}
-          </span>
-          Live
+            {soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+            {soundEnabled ? 'Sound on' : 'Enable sound'}
+          </Button>
+          <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-medium">
+            <span
+              className={cn(
+                'relative inline-flex size-2 rounded-full',
+                autoRefresh ? 'bg-emerald-500' : 'bg-muted-foreground',
+              )}
+            >
+              {autoRefresh && (
+                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/60" />
+              )}
+            </span>
+            Live
+          </div>
         </div>
       </div>
+
+      {soundBlocked && (
+        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-100">
+          Browser audio is blocked. Tap Enable sound once to allow kitchen alerts.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {columns.map((col) => {

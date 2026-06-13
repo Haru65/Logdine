@@ -21,7 +21,7 @@ export function TopBar() {
             <Menu className="size-5" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="p-0">
+        <SheetContent side="left" className="w-[88vw] max-w-sm p-0">
           <MobileSidebar />
         </SheetContent>
       </Sheet>

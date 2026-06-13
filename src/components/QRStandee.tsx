@@ -207,10 +207,17 @@ function fitFont(
   return minSize;
 }
 
-function drawCornerBrackets(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-  const len = 58;
+function drawCornerBrackets(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  len = 48,
+  lineWidth = 5,
+) {
   ctx.strokeStyle = ORANGE;
-  ctx.lineWidth = 6;
+  ctx.lineWidth = lineWidth;
   ctx.lineCap = 'square';
   [
     [[x, y + len], [x, y], [x + len, y]],
@@ -227,9 +234,9 @@ function drawCornerBrackets(ctx: CanvasRenderingContext2D, x: number, y: number,
 }
 
 function drawHeadline(ctx: CanvasRenderingContext2D, centerX: number, baseline: number, maxWidth: number) {
-  let mainSize = 76;
-  let toSize = 62;
-  const gap = 20;
+  let mainSize = 70;
+  let toSize = 56;
+  const gap = 18;
   let widths = { scan: 0, to: 0, order: 0 };
   let totalWidth = 0;
 
@@ -244,7 +251,7 @@ function drawHeadline(ctx: CanvasRenderingContext2D, centerX: number, baseline: 
     if (totalWidth <= maxWidth) break;
     mainSize -= 2;
     toSize -= 2;
-  } while (mainSize >= 58);
+  } while (mainSize >= 52);
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -265,9 +272,9 @@ function drawHeadline(ctx: CanvasRenderingContext2D, centerX: number, baseline: 
 }
 
 function drawBulkHeadline(ctx: CanvasRenderingContext2D, centerX: number, baseline: number, maxWidth: number) {
-  let mainSize = mm(10.5);
-  let toSize = mm(9.2);
-  const gap = mm(2.2);
+  let mainSize = mm(9.7);
+  let toSize = mm(8.4);
+  const gap = mm(2);
   let widths = { scan: 0, to: 0, order: 0 };
   let totalWidth = 0;
 
@@ -282,7 +289,7 @@ function drawBulkHeadline(ctx: CanvasRenderingContext2D, centerX: number, baseli
     if (totalWidth <= maxWidth) break;
     mainSize -= mm(0.25);
     toSize -= mm(0.25);
-  } while (mainSize >= mm(9));
+  } while (mainSize >= mm(8.2));
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -328,17 +335,17 @@ function drawStandeeCanvas(
 
   const brand = cafeName.trim().toUpperCase() || 'YOUR CAFE';
   if (assets.logo) {
-    drawImageContain(ctx, assets.logo, 310, 54, 380, 136);
+    drawImageContain(ctx, assets.logo, 306, 53, 388, 139);
   }
   ctx.fillStyle = INK;
-  const brandSize = fitFont(ctx, brand, 600, 38, 24, 900);
+  const brandSize = fitFont(ctx, brand, 620, 43, 29, 900);
   ctx.font = `900 ${brandSize}px Arial`;
-  drawCenteredText(ctx, brand, 500, 214, 640);
+  drawCenteredText(ctx, brand, 500, 220, 660);
   ctx.fillStyle = ORANGE;
-  ctx.fillRect(390, 232, 220, 5);
+  ctx.fillRect(390, 238, 220, 5);
 
   const scanBox = { x: 96, y: 285, w: 808, h: 172 };
-  drawCornerBrackets(ctx, scanBox.x, scanBox.y, scanBox.w, scanBox.h);
+  drawCornerBrackets(ctx, scanBox.x, scanBox.y, scanBox.w, scanBox.h, 46, 5);
   drawHeadline(ctx, 500, 385, 670);
 
   ctx.font = '500 19px Arial';
@@ -433,14 +440,14 @@ function drawBulkStandeeCanvas(
   drawImageContain(ctx, assets.cupBeans, w - mm(27), mm(92), mm(24), mm(19));
   ctx.globalAlpha = 1;
 
-  drawImageContain(ctx, assets.logo, centerX - mm(18), mm(5), mm(36), mm(18));
+  drawImageContain(ctx, assets.logo, centerX - mm(18.25), mm(4.75), mm(36.5), mm(18.25));
   ctx.fillStyle = INK;
-  ctx.font = `900 ${mm(3.4)}px Arial`;
+  ctx.font = `900 ${mm(3.82)}px Arial`;
   ctx.textAlign = 'center';
-  ctx.fillText(restaurantName.trim().toUpperCase() || 'RESTAURANT', centerX, mm(26), mm(96));
+  ctx.fillText(restaurantName.trim().toUpperCase() || 'RESTAURANT', centerX, mm(26.75), mm(102));
 
   const scanBox = { x: mm(12), y: mm(29), w: mm(112.5), h: mm(30) };
-  drawCornerBrackets(ctx, scanBox.x, scanBox.y, scanBox.w, scanBox.h);
+  drawCornerBrackets(ctx, scanBox.x, scanBox.y, scanBox.w, scanBox.h, mm(3.7), mm(0.38));
   drawBulkHeadline(ctx, centerX, mm(45.5), mm(108));
 
   ctx.fillStyle = '#222';
