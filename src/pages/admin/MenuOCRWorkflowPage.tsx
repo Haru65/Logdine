@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { FileUp, Wand2, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,12 +12,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { menuExtractionService, type ExtractedMenuItem } from '@/services/menuExtraction.service';
 import { useAuthStore, selectTenantId } from '@/store/auth.store';
 import { useCategories } from '@/hooks/useRestaurant';
-import { restaurantService } from '@/services/restaurant.service';
+import { qk } from '@/api/queryClient';
 
 const steps = ['Upload', 'Extract', 'Review', 'Import'];
 
 export default function MenuOCRWorkflowPage() {
   const tenantId = useAuthStore(selectTenantId);
+  const queryClient = useQueryClient();
   const { data: categories = [] } = useCategories();
   const [step, setStep] = useState(0);
   const [file, setFile] = useState<File | null>(null);
@@ -69,27 +71,24 @@ export default function MenuOCRWorkflowPage() {
 
   async function importItems() {
     if (!tenantId) return;
-    const source = (items.length ? items : parsedItems).map(normalizeExtractedItem);
-    if (!source.some((item) => item.category) && !defaultCategoryId) return;
+    const source = (items.length ? items : parsedItems).map((item) => ({
+      ...normalizeExtractedItem(item),
+      category_id: item.category_id ?? defaultCategoryId,
+      category: item.category || categories.find((category) => category.id === (item.category_id ?? defaultCategoryId))?.name,
+    }));
+    if (!source.length || (!source.some((item) => item.category || item.category_id) && !defaultCategoryId)) {
+      toast.error('Select or create a category before importing.');
+      return;
+    }
     setBusy(true);
     try {
-      if (source.some((item) => item.category)) {
-        await menuExtractionService.importItems(tenantId, source);
-      } else {
-        await restaurantService.createItemsBulk(
-          tenantId,
-          source.map((item) => ({
-            category_id: item.category_id ?? defaultCategoryId,
-            name: item.name,
-            description: item.description,
-            price: Number(item.price ?? 0),
-            is_veg: item.is_veg ?? true,
-            is_available: true,
-          })),
-        );
-      }
+      await menuExtractionService.importItems(tenantId, source);
+      await queryClient.invalidateQueries({ queryKey: qk.items(tenantId) });
+      await queryClient.invalidateQueries({ queryKey: qk.categories(tenantId) });
       setStep(3);
       toast.success('Menu imported');
+    } catch (error) {
+      toast.error((error as { message?: string })?.message || 'Menu import failed');
     } finally {
       setBusy(false);
     }

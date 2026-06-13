@@ -258,13 +258,13 @@ export const restaurantService = {
     await apiClient.delete(endpoints.restaurant(tenantId).allItems);
   },
 
-  async uploadItemImage(tenantId: string, id: string, file: File): Promise<{ url: string }> {
+  async uploadItemImage(tenantId: string, id: string, file: File): Promise<MenuItem> {
     const fd = new FormData();
     fd.append('image', file);
     const res = await apiClient.post(endpoints.restaurant(tenantId).itemImage(id), fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return unwrap<{ url: string }>(res.data);
+    return normalizeMenuItem(unwrap<unknown>(res.data));
   },
 
   async autoGenerateItemImage(tenantId: string, id: string, prompt?: string): Promise<{ url: string }> {

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ImagePlus, Pencil, Plus, Search, Sparkles, Trash2, UtensilsCrossed, Wand2, X } from 'lucide-react';
+import { ImagePlus, Pencil, Plus, Search, Sparkles, Trash2, Upload, UtensilsCrossed, Wand2, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,9 @@ import {
 } from '@/hooks/useRestaurant';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { MenuCategory, MenuItem } from '@/types';
+import { restaurantService } from '@/services/restaurant.service';
+import { useAuthStore, selectTenantId } from '@/store/auth.store';
+import { qk } from '@/api/queryClient';
 
 type OptionRow = {
   name: string;
@@ -322,12 +326,16 @@ function MenuItemEditor({
   const updateVariants = useUpdateItemVariants();
   const updateAddons = useUpdateItemAddons();
   const bulkImages = useBulkUpdateImages();
+  const tenantId = useAuthStore(selectTenantId);
+  const queryClient = useQueryClient();
   const isEditing = Boolean(item?.id);
   const [name, setName] = useState(item?.name ?? '');
   const [categoryId, setCategoryId] = useState(item?.category_id ?? defaultCategoryId ?? '');
   const [description, setDescription] = useState(item?.description ?? '');
   const [price, setPrice] = useState(item ? String(item.price) : '');
   const [imageUrl, setImageUrl] = useState(item?.image_url ?? '');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [tags, setTags] = useState(tagsToInputValue(item?.tags));
   const [preparationTime, setPreparationTime] = useState(
     item?.preparation_time ? String(item.preparation_time) : '',
@@ -351,7 +359,7 @@ function MenuItemEditor({
   );
 
   const canSave = Boolean(categoryId) && name.trim().length > 0 && Number.isFinite(Number(price)) && Number(price) >= 0;
-  const isSaving = createItem.isPending || updateItem.isPending || updateVariants.isPending || updateAddons.isPending;
+  const isSaving = createItem.isPending || updateItem.isPending || updateVariants.isPending || updateAddons.isPending || uploadingImage;
 
   const cleanVariants = () =>
     variants
@@ -396,6 +404,16 @@ function MenuItemEditor({
 
     await updateVariants.mutateAsync({ id: itemId, variants: cleanVariants() });
     await updateAddons.mutateAsync({ id: itemId, addons: cleanAddons() });
+
+    if (imageFile && tenantId) {
+      setUploadingImage(true);
+      try {
+        await restaurantService.uploadItemImage(tenantId, itemId, imageFile);
+        await queryClient.invalidateQueries({ queryKey: qk.items(tenantId) });
+      } finally {
+        setUploadingImage(false);
+      }
+    }
     onClose();
   };
 
@@ -449,9 +467,16 @@ function MenuItemEditor({
         </div>
 
         <div className="space-y-1.5">
-          <Label>Image URL</Label>
+          <Label>Image</Label>
           <div className="flex gap-2">
-            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+            <Input
+              placeholder="Paste image URL"
+              value={imageUrl}
+              onChange={(e) => {
+                setImageUrl(e.target.value);
+                if (e.target.value.trim()) setImageFile(null);
+              }}
+            />
             <Button
               type="button"
               variant="outline"
@@ -463,6 +488,25 @@ function MenuItemEditor({
               <ImagePlus className="size-4" />
             </Button>
           </div>
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+            <span className="truncate">{imageFile ? imageFile.name : 'Upload item image'}</span>
+            <Upload className="size-4 shrink-0" />
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                setImageFile(file);
+                if (file) setImageUrl('');
+              }}
+            />
+          </label>
+          {(imageFile || imageUrl) && (
+            <p className="text-xs text-muted-foreground">
+              {imageFile ? 'Uploaded image will replace the URL when saved.' : 'Image URL will be saved with this item.'}
+            </p>
+          )}
         </div>
 
         <div className="space-y-1.5">
