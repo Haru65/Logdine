@@ -15,6 +15,7 @@ import {
   Search,
   ShoppingBag,
   Sparkles,
+  Tag,
   Utensils,
   X,
 } from 'lucide-react';
@@ -30,7 +31,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { cn, formatCurrency, timeAgo } from '@/lib/utils';
-import type { MenuAddon, MenuItem, MenuVariant, Order } from '@/types';
+import type { ComboOffer, MenuAddon, MenuItem, MenuVariant, Order } from '@/types';
 
 type DietFilter = 'all' | 'veg' | 'non-veg';
 type CheckoutPaymentMethod = 'cash' | 'paytm';
@@ -70,6 +71,10 @@ export default function PublicMenuPage() {
     () => new Set((menuQuery.data?.items ?? []).map((item) => item.id)),
     [menuQuery.data?.items],
   );
+  const availableComboIds = useMemo(
+    () => new Set((menuQuery.data?.combos ?? []).map((combo) => combo.id)),
+    [menuQuery.data?.combos],
+  );
 
   useEffect(() => {
     if (!slug || !table) return;
@@ -81,11 +86,13 @@ export default function PublicMenuPage() {
 
   useEffect(() => {
     if (!menuQuery.data || cart.items.length === 0) return;
-    const staleItems = cart.items.filter((line) => !availableItemIds.has(line.menu_item_id));
+    const staleItems = cart.items.filter((line) =>
+      line.combo_id ? !availableComboIds.has(line.combo_id) : !availableItemIds.has(line.menu_item_id),
+    );
     if (!staleItems.length) return;
     staleItems.forEach((line) => cart.removeItem(line.uid));
     toast.error('Removed unavailable items from your cart.');
-  }, [availableItemIds, cart, cart.items, menuQuery.data]);
+  }, [availableComboIds, availableItemIds, cart, cart.items, menuQuery.data]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -148,7 +155,9 @@ export default function PublicMenuPage() {
 
   const createOrder = useMutation({
     mutationFn: async (method: CheckoutPaymentMethod) => {
-      const unavailableItems = cart.items.filter((line) => !availableItemIds.has(line.menu_item_id));
+      const unavailableItems = cart.items.filter((line) =>
+        line.combo_id ? !availableComboIds.has(line.combo_id) : !availableItemIds.has(line.menu_item_id),
+      );
       if (unavailableItems.length) {
         unavailableItems.forEach((line) => cart.removeItem(line.uid));
         throw new Error('Some cart items are no longer available. Please add them again.');
@@ -156,23 +165,31 @@ export default function PublicMenuPage() {
       const createdOrder = await publicOrderService.createOrder(slug, table, {
         paymentMethod: method === 'paytm' ? 'online' : 'cash',
         notes: cart.notes,
-        items: cart.items.map((line) => ({
-          menu_item_id: line.menu_item_id,
-          quantity: line.quantity,
-          selectedVariant: line.variants[0]
+        items: cart.items.map((line) => (
+          line.combo_id
             ? {
-                id: line.variants[0].id,
-                name: line.variants[0].name,
-                price: line.variants[0].price,
+                combo_id: line.combo_id,
+                quantity: line.quantity,
+                notes: line.notes,
               }
-            : null,
-          selectedAddons: line.addons.map((addon) => ({
-            id: addon.id,
-            name: addon.name,
-            price: addon.price,
-          })),
-          notes: line.notes,
-        })),
+            : {
+                menu_item_id: line.menu_item_id,
+                quantity: line.quantity,
+                selectedVariant: line.variants[0]
+                  ? {
+                      id: line.variants[0].id,
+                      name: line.variants[0].name,
+                      price: line.variants[0].price,
+                    }
+                  : null,
+                selectedAddons: line.addons.map((addon) => ({
+                  id: addon.id,
+                  name: addon.name,
+                  price: addon.price,
+                })),
+                notes: line.notes,
+              }
+        )),
       });
 
       if (method === 'paytm') {
@@ -324,6 +341,26 @@ export default function PublicMenuPage() {
           </p>
         </section>
 
+        {data?.combos?.length ? (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-primary">
+                  <Tag className="size-3.5" />
+                  Combo offers
+                </p>
+                <h2 className="font-serif text-xl font-bold">Value meals</h2>
+              </div>
+              <Badge variant="secondary">{data.combos.length}</Badge>
+            </div>
+            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+              {data.combos.map((combo) => (
+                <ComboOfferCard key={combo.id} combo={combo} />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 lg:grid-cols-3">
           {menuQuery.isLoading
             ? Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-72 rounded-lg" />)
@@ -376,7 +413,12 @@ export default function PublicMenuPage() {
                               {[...line.variants, ...line.addons].map((entry) => entry.name).join(', ')}
                             </p>
                           )}
-                          {line.notes && <p className="mt-1 text-xs text-muted-foreground">Note: {line.notes}</p>}
+                          {line.combo_items?.length ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {line.combo_items.map((item) => `${item.quantity}x ${item.item_name ?? 'Item'}`).join(', ')}
+                            </p>
+                          ) : null}
+                          {line.notes && !line.combo_id && <p className="mt-1 text-xs text-muted-foreground">Note: {line.notes}</p>}
                         </div>
                         <div className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1">
                           <button className="grid size-8 place-items-center text-primary" onClick={() => cart.updateQuantity(line.uid, line.quantity - 1)}>
@@ -518,6 +560,68 @@ function CustomerMenuCard({ item }: { item: MenuItem }) {
   );
 }
 
+function ComboOfferCard({ combo }: { combo: ComboOffer }) {
+  const addCombo = useCartStore((state) => state.addCombo);
+  const inCartCount = useCartStore((state) =>
+    state.items
+      .filter((line) => line.combo_id === combo.id)
+      .reduce((sum, line) => sum + line.quantity, 0),
+  );
+  const image = combo.image_url || combo.items?.find((item) => item.item_image)?.item_image;
+  const savings = Math.max(0, Number(combo.original_price ?? 0) - Number(combo.combo_price ?? 0));
+
+  return (
+    <article className="flex w-[280px] shrink-0 overflow-hidden rounded-lg border border-primary/20 bg-card shadow-soft">
+      <div className="w-24 shrink-0 bg-muted">
+        {image ? (
+          <img src={image} alt={combo.name} className="size-full object-cover" loading="lazy" />
+        ) : (
+          <div className="grid size-full place-items-center bg-primary/10">
+            <Tag className="size-7 text-primary" />
+          </div>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col p-3">
+        <div className="min-w-0">
+          <div className="mb-1 flex items-center gap-1.5">
+            <Badge variant="success" className="px-1.5 py-0 text-[10px]">Combo</Badge>
+            {savings > 0 && (
+              <span className="text-[10px] font-bold text-emerald-600">Save {formatCurrency(savings)}</span>
+            )}
+          </div>
+          <h3 className="line-clamp-2 font-serif text-base font-bold leading-tight">{combo.name}</h3>
+          {combo.description && (
+            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{combo.description}</p>
+          )}
+          {combo.items?.length ? (
+            <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
+              {combo.items.map((item) => `${item.quantity}x ${item.item_name ?? 'Item'}`).join(', ')}
+            </p>
+          ) : null}
+        </div>
+        <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+          <div>
+            <p className="font-serif text-lg font-bold text-primary">{formatCurrency(combo.combo_price)}</p>
+            {combo.original_price ? (
+              <p className="text-xs text-muted-foreground line-through">{formatCurrency(combo.original_price)}</p>
+            ) : null}
+          </div>
+          <Button
+            size="sm"
+            className="min-w-20"
+            onClick={() => {
+              addCombo(combo);
+              toast.success(`${combo.name} added`);
+            }}
+          >
+            {inCartCount ? `${inCartCount} added` : 'Add'}
+          </Button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function ItemDetailDialog({
   item,
   open,
@@ -545,7 +649,10 @@ function ItemDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto p-0"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
         <div className="aspect-[16/10] bg-muted">
           {item.image_url ? (
             <img src={item.image_url} alt={item.name} className="size-full object-cover" />

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/auth.store';
-import { useSaveTaxConfig, useTaxConfig } from '@/hooks/useRestaurant';
+import { useSaveTaxConfig, useTaxConfig, useUpdateRestaurantInfo } from '@/hooks/useRestaurant';
 
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
@@ -33,24 +33,7 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Restaurant Profile</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <Field label="Restaurant name" defaultValue={user?.tenant?.name} />
-              <Field label="Slug" defaultValue={user?.tenant?.slug} disabled />
-              <Field label="Phone" placeholder="+91 98765 43210" />
-              <Field label="Email" type="email" defaultValue={user?.email} />
-              <div className="md:col-span-2">
-                <Label>Address</Label>
-                <Input className="mt-1.5" placeholder="Street, city, postcode" />
-              </div>
-              <div className="md:col-span-2 flex justify-end">
-                <Button>Save changes</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ProfileSettingsCard user={user} />
         </TabsContent>
 
         <TabsContent value="tax">
@@ -88,6 +71,78 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function ProfileSettingsCard({ user }: { user: ReturnType<typeof useAuthStore.getState>['user'] }) {
+  const saveProfile = useUpdateRestaurantInfo();
+  const tenant = user?.tenant;
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+
+  useEffect(() => {
+    setName(tenant?.name ?? '');
+    setPhone(tenant?.contact_phone ?? '');
+    setEmail(tenant?.contact_email ?? user?.email ?? '');
+    setAddress(tenant?.address ?? '');
+    setLogoUrl(tenant?.logo_url ?? tenant?.logoUrl ?? tenant?.logo ?? '');
+  }, [tenant, user?.email]);
+
+  const canSave = name.trim().length > 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Restaurant Profile</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form
+          className="grid gap-4 md:grid-cols-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!canSave) return;
+            saveProfile.mutate({
+              name: name.trim(),
+              contact_phone: phone.trim(),
+              contact_email: email.trim(),
+              address: address.trim(),
+              logo_url: logoUrl.trim(),
+            });
+          }}
+        >
+          <Field label="Restaurant name" value={name} onChange={(event) => setName(event.target.value)} />
+          <Field label="Slug" value={tenant?.slug ?? ''} disabled />
+          <Field label="Phone" value={phone} placeholder="+91 98765 43210" onChange={(event) => setPhone(event.target.value)} />
+          <Field label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+          <div className="md:col-span-2">
+            <Label>Address</Label>
+            <Input
+              className="mt-1.5"
+              value={address}
+              placeholder="Street, city, postcode"
+              onChange={(event) => setAddress(event.target.value)}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Logo URL</Label>
+            <Input
+              className="mt-1.5"
+              value={logoUrl}
+              placeholder="https://..."
+              onChange={(event) => setLogoUrl(event.target.value)}
+            />
+          </div>
+          <div className="md:col-span-2 flex justify-end">
+            <Button type="submit" loading={saveProfile.isPending} disabled={!canSave}>
+              Save changes
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 

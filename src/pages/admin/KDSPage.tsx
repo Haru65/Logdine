@@ -350,6 +350,13 @@ function OrderTicket({
                 </span>
                 <div className="flex-1">
                   <p className="font-medium leading-tight">{it.name_snapshot}</p>
+                  {[...(it.variants ?? []), ...(it.addons ?? [])].length > 0 && (
+                    <p className="mt-0.5 text-[11px] font-medium text-primary">
+                      {[...(it.variants ?? []), ...(it.addons ?? [])]
+                        .map((entry) => entry.name)
+                        .join(', ')}
+                    </p>
+                  )}
                   {it.notes && (
                     <p className="mt-0.5 text-[11px] italic text-muted-foreground">
                       “{it.notes}”

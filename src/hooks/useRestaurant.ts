@@ -16,6 +16,7 @@ import type {
   PaymentProvider,
   RestaurantTable,
   TaxConfig,
+  Tenant,
 } from '@/types';
 import { toast } from 'sonner';
 
@@ -41,6 +42,36 @@ export function useDashboardMetrics() {
     queryFn: () => restaurantService.getDashboardMetrics(requireTenantId(tenantId)),
     enabled: Boolean(tenantId),
     refetchInterval: 30_000, // live-ish for ops floor
+  });
+}
+
+export function useUpdateRestaurantInfo() {
+  const tenantId = useTenantId();
+  const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
+
+  return useMutation({
+    mutationFn: (data: Partial<Tenant>) => restaurantService.updateInfo(requireTenantId(tenantId), data),
+    onSuccess: (tenant) => {
+      if (tenantId) {
+        qc.invalidateQueries({ queryKey: qk.dashboard(tenantId) });
+      }
+      if (user) {
+        setUser({
+          ...user,
+          tenant: {
+            ...user.tenant,
+            ...tenant,
+          },
+        });
+      }
+      toast.success('Restaurant profile saved');
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save restaurant profile';
+      toast.error(errorMessage);
+    },
   });
 }
 

@@ -1,12 +1,13 @@
 import apiClient, { unwrap } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
-import type { MenuAddon, MenuCategory, MenuItem, MenuVariant, Order, PaymentMethod, RestaurantTable, Tenant } from '@/types';
+import type { ComboOffer, MenuAddon, MenuCategory, MenuItem, MenuVariant, Order, PaymentMethod, RestaurantTable, Tenant } from '@/types';
 
 export interface PublicMenuResponse {
   restaurant: Tenant;
   table: RestaurantTable;
   categories: MenuCategory[];
   items: MenuItem[];
+  combos?: ComboOffer[];
   paymentOptions?: {
     cash?: { isAvailable: boolean };
     paytm?: {
@@ -55,9 +56,24 @@ function normalizePublicMenuItem(item: MenuItem, categoryId?: string): MenuItem 
   };
 }
 
+function normalizeCombo(combo: ComboOffer): ComboOffer {
+  return {
+    ...combo,
+    combo_price: Number(combo.combo_price ?? 0),
+    original_price: Number(combo.original_price ?? 0),
+    is_active: toBool(combo.is_active),
+    items: (combo.items ?? []).map((item) => ({
+      ...item,
+      quantity: Number(item.quantity ?? 1),
+      item_price: Number(item.item_price ?? 0),
+    })),
+  };
+}
+
 export interface CreateOrderPayload {
   items: Array<{
-    menu_item_id: string;
+    menu_item_id?: string;
+    combo_id?: string;
     quantity: number;
     selectedVariant?: Pick<MenuVariant, 'id' | 'name' | 'price'> | null;
     selectedAddons?: Array<Pick<MenuAddon, 'id' | 'name' | 'price'>>;
@@ -80,6 +96,7 @@ export const publicOrderService = {
     const data = unwrap<Omit<PublicMenuResponse, 'categories' | 'items'> & {
       categories?: PublicMenuCategory[];
       items?: MenuItem[];
+      combos?: ComboOffer[];
     }>(res.data);
     const categories: PublicMenuCategory[] = (data.categories ?? []).map((category) => ({
       ...category,
@@ -97,6 +114,7 @@ export const publicOrderService = {
       },
       categories,
       items,
+      combos: (data.combos ?? []).map(normalizeCombo),
     };
   },
 

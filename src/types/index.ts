@@ -18,6 +18,7 @@ export interface Tenant {
   source?: 'cafe' | 'restaurant' | 'lodging' | string;
   address?: string;
   contact_phone?: string;
+  contact_email?: string;
   logo_url?: string;
   logoUrl?: string;
   logo?: string;
@@ -331,6 +332,8 @@ export interface IntegrationConfig {
 export interface CartItem {
   uid: string; // local UUID — distinguishes same item with diff addons
   menu_item_id: string;
+  combo_id?: string;
+  combo_items?: ComboItem[];
   name: string;
   price: number; // unit price after variant
   quantity: number;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { CartItem, MenuAddon, MenuItem, MenuVariant, OrderType } from '@/types';
+import type { CartItem, ComboOffer, MenuAddon, MenuItem, MenuVariant, OrderType } from '@/types';
 import { uid } from '@/lib/utils';
 
 interface CartState {
@@ -15,6 +15,7 @@ interface CartState {
   setNotes: (n: string) => void;
 
   addItem: (item: MenuItem, opts?: { variants?: MenuVariant[]; addons?: MenuAddon[]; notes?: string; quantity?: number }) => void;
+  addCombo: (combo: ComboOffer, opts?: { quantity?: number }) => void;
   updateQuantity: (uid: string, qty: number) => void;
   removeItem: (uid: string) => void;
   clear: () => void;
@@ -83,6 +84,41 @@ export const useCartStore = create<CartState>()(
               addons,
               notes,
               image_url: item.image_url,
+            },
+          ],
+        });
+      },
+
+      addCombo: (combo, opts = {}) => {
+        const quantity = opts.quantity ?? 1;
+        const existing = get().items.find((ci) => ci.combo_id === combo.id);
+
+        if (existing) {
+          set({
+            items: get().items.map((ci) =>
+              ci.uid === existing.uid ? { ...ci, quantity: ci.quantity + quantity } : ci,
+            ),
+          });
+          return;
+        }
+
+        set({
+          items: [
+            ...get().items,
+            {
+              uid: uid('combo'),
+              menu_item_id: '',
+              combo_id: combo.id,
+              combo_items: combo.items ?? [],
+              name: combo.name,
+              price: Number(combo.combo_price ?? 0),
+              quantity,
+              variants: [],
+              addons: [],
+              notes: combo.items?.length
+                ? `Combo includes: ${combo.items.map((item) => `${item.quantity}x ${item.item_name ?? 'Item'}`).join(', ')}`
+                : undefined,
+              image_url: combo.image_url || combo.items?.find((item) => item.item_image)?.item_image,
             },
           ],
         });

@@ -156,6 +156,11 @@ export const restaurantService = {
     return unwrap<Tenant>(res.data);
   },
 
+  async updateInfo(tenantId: string, data: Partial<Tenant>): Promise<Tenant> {
+    const res = await apiClient.put(endpoints.restaurant(tenantId).info, data);
+    return unwrap<Tenant>(res.data);
+  },
+
   async getDashboardMetrics(tenantId: string): Promise<DashboardMetrics> {
     const res = await apiClient.get(endpoints.restaurant(tenantId).dashboardMetrics);
     return unwrap<DashboardMetrics>(res.data);
