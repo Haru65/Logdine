@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { BarChart3, Download, FileText, PackageSearch } from 'lucide-react';
+import type { ReactNode } from 'react';
+import jsPDF from 'jspdf';
+import { Banknote, BarChart3, CreditCard, Download, FileText, PackageSearch } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -62,6 +64,8 @@ export default function ReportsPage() {
           label: row.period,
           value: Number(row.total_revenue ?? 0),
           orders: Number(row.total_orders ?? 0),
+          cashRevenue: Number(row.cash_revenue ?? 0),
+          onlineRevenue: Number(row.online_revenue ?? 0),
         })),
     [revenue],
   );
@@ -76,8 +80,8 @@ export default function ReportsPage() {
 
   function exportCsv() {
     const rows = [
-      ['Period', 'Revenue', 'Orders'],
-      ...chartData.map((row) => [row.label, row.value, row.orders]),
+      ['Period', 'Revenue', 'Cash Revenue', 'Online Revenue', 'Orders'],
+      ...chartData.map((row) => [row.label, row.value, row.cashRevenue, row.onlineRevenue, row.orders]),
       [],
       ['Product', 'Category', 'Qty Sold', 'Revenue'],
       ...productRows.map((row) => [
@@ -97,6 +101,120 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   }
 
+  function exportPdf() {
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 40;
+    let y = 42;
+
+    const money = (value: number) => `INR ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const line = () => {
+      pdf.setDrawColor(225, 225, 225);
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 16;
+    };
+    const ensureSpace = (height = 72) => {
+      if (y + height < pageHeight - margin) return;
+      pdf.addPage();
+      y = margin;
+    };
+    const writeRow = (columns: Array<{ text: string; x: number; width?: number; align?: 'left' | 'right' }>, rowHeight = 18) => {
+      ensureSpace(rowHeight + 8);
+      columns.forEach((column) => {
+        const text = column.width ? pdf.splitTextToSize(column.text, column.width)[0] : column.text;
+        pdf.text(String(text), column.x, y, { align: column.align ?? 'left' });
+      });
+      y += rowHeight;
+    };
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(20);
+    pdf.text('RestroHub Report', margin, y);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    pdf.text(`${formatDate(dates.startDate)} to ${formatDate(dates.endDate)}`, margin, y + 18);
+    pdf.text(new Date().toLocaleString(), pageWidth - margin, y + 18, { align: 'right' });
+    y += 46;
+    line();
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(12);
+    pdf.text('Summary', margin, y);
+    y += 22;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    writeRow([
+      { text: `Revenue: ${money(summary?.total_revenue ?? 0)}`, x: margin },
+      { text: `Orders: ${summary?.total_orders ?? 0}`, x: 245 },
+      { text: `Avg order: ${money(summary?.avg_order_value ?? 0)}`, x: 355 },
+    ]);
+    writeRow([
+      { text: `Cash revenue: ${money(summary?.cash_revenue ?? 0)} (${summary?.cash_orders ?? 0} orders)`, x: margin },
+      { text: `Online revenue: ${money(summary?.online_revenue ?? 0)} (${summary?.online_orders ?? 0} orders)`, x: 300 },
+    ]);
+    y += 8;
+    line();
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(12);
+    pdf.text('Revenue By Period', margin, y);
+    y += 22;
+    pdf.setFontSize(9);
+    writeRow([
+      { text: 'Period', x: margin },
+      { text: 'Total', x: 220, align: 'right' },
+      { text: 'Cash', x: 320, align: 'right' },
+      { text: 'Online', x: 420, align: 'right' },
+      { text: 'Orders', x: 520, align: 'right' },
+    ], 16);
+    pdf.setFont('helvetica', 'normal');
+    chartData.forEach((row) => {
+      writeRow([
+        { text: row.label, x: margin, width: 130 },
+        { text: money(row.value), x: 220, align: 'right' },
+        { text: money(row.cashRevenue), x: 320, align: 'right' },
+        { text: money(row.onlineRevenue), x: 420, align: 'right' },
+        { text: String(row.orders), x: 520, align: 'right' },
+      ], 16);
+    });
+
+    y += 8;
+    line();
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(12);
+    pdf.text('Top Products', margin, y);
+    y += 22;
+    pdf.setFontSize(9);
+    writeRow([
+      { text: '#', x: margin },
+      { text: 'Product', x: 70 },
+      { text: 'Category', x: 275 },
+      { text: 'Qty', x: 420, align: 'right' },
+      { text: 'Revenue', x: 520, align: 'right' },
+    ], 16);
+    pdf.setFont('helvetica', 'normal');
+    productRows.slice(0, 15).forEach((row, index) => {
+      writeRow([
+        { text: String(index + 1), x: margin },
+        { text: row.name, x: 70, width: 175 },
+        { text: row.category_name ?? '-', x: 275, width: 120 },
+        { text: String(Number(row.total_quantity ?? 0)), x: 420, align: 'right' },
+        { text: money(Number(row.total_revenue ?? 0)), x: 520, align: 'right' },
+      ], 16);
+    });
+
+    const pages = pdf.getNumberOfPages();
+    for (let page = 1; page <= pages; page += 1) {
+      pdf.setPage(page);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.text(`Page ${page} of ${pages}`, pageWidth - margin, pageHeight - 24, { align: 'right' });
+    }
+
+    pdf.save(`restrohub-report-${dates.startDate}-to-${dates.endDate}.pdf`);
+  }
+
   return (
     <div className="container py-6 lg:py-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -110,7 +228,7 @@ export default function ReportsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-1.5" onClick={() => window.print()}>
+          <Button variant="outline" className="gap-1.5" onClick={exportPdf}>
             <FileText className="size-4" /> Export PDF
           </Button>
           <Button variant="outline" className="gap-1.5" onClick={exportCsv}>
@@ -163,6 +281,25 @@ export default function ReportsPage() {
         <Metric title="Items sold" value={String(products?.summary?.total_items_sold ?? 0)} loading={prodLoading} />
       </div>
 
+      <div className="mb-4 grid gap-3 md:grid-cols-2">
+        <PaymentMetric
+          icon={<Banknote className="size-5" />}
+          title="Cash revenue"
+          value={formatCurrency(summary?.cash_revenue ?? 0)}
+          orders={summary?.cash_orders ?? 0}
+          loading={revLoading}
+          tone="emerald"
+        />
+        <PaymentMetric
+          icon={<CreditCard className="size-5" />}
+          title="Online revenue"
+          value={formatCurrency(summary?.online_revenue ?? 0)}
+          orders={summary?.online_orders ?? 0}
+          loading={revLoading}
+          tone="sky"
+        />
+      </div>
+
       <Card className="mb-4">
         <CardHeader>
           <CardTitle className="text-lg">Revenue</CardTitle>
@@ -198,9 +335,13 @@ export default function ReportsPage() {
                     borderRadius: 8,
                     fontSize: 12,
                   }}
-                  formatter={(v: number) => [formatCurrency(v), 'Revenue']}
+                  formatter={(v: number, name: string) => [
+                    formatCurrency(v),
+                    name === 'cashRevenue' ? 'Cash' : name === 'onlineRevenue' ? 'Online' : 'Revenue',
+                  ]}
                 />
-                <Bar dataKey="value" fill="#ff6b00" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="cashRevenue" stackId="revenue" fill="#10b981" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="onlineRevenue" stackId="revenue" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -265,6 +406,48 @@ function Metric({ title, value, loading }: { title: string; value: string; loadi
       <CardContent className="p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
         {loading ? <Skeleton className="mt-2 h-7 w-24" /> : <p className="mt-1 font-serif text-2xl font-bold">{value}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PaymentMetric({
+  icon,
+  title,
+  value,
+  orders,
+  loading,
+  tone,
+}: {
+  icon: ReactNode;
+  title: string;
+  value: string;
+  orders: number;
+  loading?: boolean;
+  tone: 'emerald' | 'sky';
+}) {
+  const styles = {
+    emerald: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300',
+    sky: 'bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300',
+  }[tone];
+
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-4 p-4">
+        <div className={cn('grid size-11 place-items-center rounded-lg', styles)}>
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+          {loading ? (
+            <Skeleton className="mt-2 h-7 w-28" />
+          ) : (
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <p className="font-serif text-2xl font-bold">{value}</p>
+              <p className="text-xs font-medium text-muted-foreground">{orders} order{orders === 1 ? '' : 's'}</p>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

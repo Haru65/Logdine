@@ -203,12 +203,20 @@ export interface RevenueReport {
     avg_order_value?: number;
     paid_orders?: number;
     paid_revenue?: number;
+    cash_orders?: number;
+    cash_revenue?: number;
+    online_orders?: number;
+    online_revenue?: number;
   }[];
   summary: {
     total_revenue: number;
     total_orders: number;
     avg_order_value: number;
     payment_success_rate: number;
+    cash_orders?: number;
+    cash_revenue?: number;
+    online_orders?: number;
+    online_revenue?: number;
   };
 }
 

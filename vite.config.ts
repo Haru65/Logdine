@@ -18,26 +18,49 @@ export default defineConfig(({ mode }) => {
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png'],
+      injectRegister: 'auto',
+      includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png', 'offline.html'],
       manifest: {
+        id: '/',
         name: 'RestroHub – Restaurant Manager',
         short_name: 'RestroHub',
         description: 'QR-based cafe & restaurant management platform',
         theme_color: '#ff6b00',
         background_color: '#fffaf5',
         display: 'standalone',
+        display_override: ['standalone', 'minimal-ui'],
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
+        lang: 'en',
+        categories: ['business', 'food', 'productivity'],
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        shortcuts: [
+          {
+            name: 'Kitchen',
+            short_name: 'Kitchen',
+            description: 'Open the live kitchen display',
+            url: '/kds',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
+          },
+          {
+            name: 'Tables',
+            short_name: 'Tables',
+            description: 'Open table management',
+            url: '/tables',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
+          },
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webmanifest}'],
         cleanupOutdatedCaches: true,
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//, /^\/admin\//, /^\/auth\//],
         runtimeCaching: [
           {
             // Cache GET requests to admin/public APIs with network-first
