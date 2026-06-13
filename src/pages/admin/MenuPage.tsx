@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useBulkUpdateImages,
   useCategories,
@@ -335,6 +336,8 @@ function MenuItemEditor({
   const [price, setPrice] = useState(item ? String(item.price) : '');
   const [imageUrl, setImageUrl] = useState(item?.image_url ?? '');
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageSource, setImageSource] = useState<'url' | 'upload'>(item?.image_url ? 'url' : 'upload');
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [tags, setTags] = useState(tagsToInputValue(item?.tags));
   const [preparationTime, setPreparationTime] = useState(
@@ -360,6 +363,17 @@ function MenuItemEditor({
 
   const canSave = Boolean(categoryId) && name.trim().length > 0 && Number.isFinite(Number(price)) && Number(price) >= 0;
   const isSaving = createItem.isPending || updateItem.isPending || updateVariants.isPending || updateAddons.isPending || uploadingImage;
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreviewUrl('');
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(imageFile);
+    setImagePreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [imageFile]);
 
   const cleanVariants = () =>
     variants
@@ -389,7 +403,7 @@ function MenuItemEditor({
       name: name.trim(),
       description,
       price: Number(price),
-      image_url: imageUrl,
+      image_url: imageFile ? (item?.image_url ?? '') : imageUrl,
       preparation_time: preparationTime ? Number(preparationTime) : undefined,
       tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
       is_veg: isVeg,
@@ -466,46 +480,66 @@ function MenuItemEditor({
           </div>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label>Image</Label>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Paste image URL"
-              value={imageUrl}
-              onChange={(e) => {
-                setImageUrl(e.target.value);
-                if (e.target.value.trim()) setImageFile(null);
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              loading={bulkImages.isPending}
-              onClick={() => bulkImages.mutate()}
-              title="Auto update missing images"
-            >
-              <ImagePlus className="size-4" />
-            </Button>
-          </div>
-          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
-            <span className="truncate">{imageFile ? imageFile.name : 'Upload item image'}</span>
-            <Upload className="size-4 shrink-0" />
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0] ?? null;
-                setImageFile(file);
-                if (file) setImageUrl('');
-              }}
-            />
-          </label>
-          {(imageFile || imageUrl) && (
-            <p className="text-xs text-muted-foreground">
-              {imageFile ? 'Uploaded image will replace the URL when saved.' : 'Image URL will be saved with this item.'}
-            </p>
+          <Tabs value={imageSource} onValueChange={(value) => setImageSource(value as 'url' | 'upload')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="url">Image URL</TabsTrigger>
+              <TabsTrigger value="upload">Upload image</TabsTrigger>
+            </TabsList>
+            <TabsContent value="url" className="mt-3 space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://example.com/item.jpg"
+                  value={imageUrl}
+                  onChange={(e) => {
+                    setImageUrl(e.target.value);
+                    if (e.target.value.trim()) setImageFile(null);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  loading={bulkImages.isPending}
+                  onClick={() => bulkImages.mutate()}
+                  title="Auto update missing images"
+                >
+                  <ImagePlus className="size-4" />
+                </Button>
+              </div>
+            </TabsContent>
+            <TabsContent value="upload" className="mt-3 space-y-2">
+              <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/20 px-3 py-4 text-center text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+                <Upload className="size-5" />
+                <span className="font-medium">{imageFile ? imageFile.name : 'Choose image file'}</span>
+                <span className="text-xs">JPEG, PNG, or WebP</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setImageFile(file);
+                    if (file) setImageUrl('');
+                  }}
+                />
+              </label>
+              {imageFile && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setImageFile(null)}>
+                  Clear upload
+                </Button>
+              )}
+            </TabsContent>
+          </Tabs>
+          {(imageFile || imageUrl || item?.image_url) && (
+            <div className="overflow-hidden rounded-md border border-border">
+              <img
+                src={imagePreviewUrl || imageUrl || item?.image_url}
+                alt={name || 'Menu item'}
+                className="h-32 w-full object-cover"
+              />
+            </div>
           )}
         </div>
 
