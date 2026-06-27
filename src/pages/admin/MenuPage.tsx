@@ -24,6 +24,7 @@ import {
   useUpdateItemVariants,
 } from '@/hooks/useRestaurant';
 import { cn, formatCurrency } from '@/lib/utils';
+import { getThumbnailUrl } from '@/lib/imageUrl';
 import type { MenuCategory, MenuItem } from '@/types';
 import { restaurantService } from '@/services/restaurant.service';
 import { useAuthStore, selectTenantId } from '@/store/auth.store';
@@ -250,7 +251,12 @@ function ItemRow({
       <Card className="group overflow-hidden">
         <div className="relative aspect-[4/3] bg-muted">
           {item.image_url ? (
-            <img src={item.image_url} alt={item.name} className="size-full object-cover" loading="lazy" />
+            <img
+              src={getThumbnailUrl(item.image_url, { width: 420, height: 315 })}
+              alt={item.name}
+              className="size-full object-cover"
+              loading="lazy"
+            />
           ) : (
             <div className="grid h-full place-items-center bg-gradient-to-br from-primary/10 to-primary/5">
               <UtensilsCrossed className="size-10 text-primary/40" />
@@ -537,7 +543,7 @@ function MenuItemEditor({
           {(imageFile || imageUrl || item?.image_url) && (
             <div className="overflow-hidden rounded-md border border-border">
               <img
-                src={imagePreviewUrl || imageUrl || item?.image_url}
+                src={imagePreviewUrl || getThumbnailUrl(imageUrl || item?.image_url, { width: 640, height: 320 })}
                 alt={name || 'Menu item'}
                 className="h-32 w-full object-cover"
               />

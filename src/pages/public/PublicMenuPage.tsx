@@ -31,6 +31,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { cn, formatCurrency, timeAgo } from '@/lib/utils';
+import { getThumbnailUrl } from '@/lib/imageUrl';
 import type { ComboOffer, MenuAddon, MenuItem, MenuVariant, Order } from '@/types';
 
 type DietFilter = 'all' | 'veg' | 'non-veg';
@@ -242,7 +243,11 @@ export default function PublicMenuPage() {
           <div className="flex items-center gap-3">
             <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-primary/10">
               {logoSrc ? (
-                <img src={logoSrc} alt={data?.restaurant.name || 'Restaurant logo'} className="size-full object-contain p-1" />
+                <img
+                  src={getThumbnailUrl(logoSrc, { width: 96, height: 96, quality: 80 })}
+                  alt={data?.restaurant.name || 'Restaurant logo'}
+                  className="size-full object-contain p-1"
+                />
               ) : (
                 <Utensils className="size-5 text-primary" />
               )}
@@ -516,7 +521,12 @@ function CustomerMenuCard({ item }: { item: MenuItem }) {
       >
         <div className="relative aspect-[4/3] bg-muted">
           {item.image_url ? (
-            <img src={item.image_url} alt={item.name} className="size-full object-cover" loading="lazy" />
+            <img
+              src={getThumbnailUrl(item.image_url, { width: 520, height: 390 })}
+              alt={item.name}
+              className="size-full object-cover"
+              loading="lazy"
+            />
           ) : (
             <div className="grid size-full place-items-center bg-gradient-to-br from-primary/15 to-primary/5">
               <Utensils className="size-10 text-primary/40" />
@@ -574,7 +584,12 @@ function ComboOfferCard({ combo }: { combo: ComboOffer }) {
     <article className="flex w-[280px] shrink-0 overflow-hidden rounded-lg border border-primary/20 bg-card shadow-soft">
       <div className="w-24 shrink-0 bg-muted">
         {image ? (
-          <img src={image} alt={combo.name} className="size-full object-cover" loading="lazy" />
+          <img
+            src={getThumbnailUrl(image, { width: 180, height: 180 })}
+            alt={combo.name}
+            className="size-full object-cover"
+            loading="lazy"
+          />
         ) : (
           <div className="grid size-full place-items-center bg-primary/10">
             <Tag className="size-7 text-primary" />
@@ -655,7 +670,11 @@ function ItemDetailDialog({
       >
         <div className="aspect-[16/10] bg-muted">
           {item.image_url ? (
-            <img src={item.image_url} alt={item.name} className="size-full object-cover" />
+            <img
+              src={getThumbnailUrl(item.image_url, { width: 900, height: 560 })}
+              alt={item.name}
+              className="size-full object-cover"
+            />
           ) : (
             <div className="grid size-full place-items-center bg-gradient-to-br from-primary/15 to-primary/5">
               <ChefHat className="size-12 text-primary/40" />

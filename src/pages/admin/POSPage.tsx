@@ -22,6 +22,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCategories, useMenuItems, useTables } from '@/hooks/useRestaurant';
 import { useCartStore, selectItemCount, selectSubtotal } from '@/store/cart.store';
 import { cn, formatCurrency } from '@/lib/utils';
+import { getThumbnailUrl } from '@/lib/imageUrl';
 import type { MenuItem, OrderType } from '@/types';
 
 const TAX_RATE = 0.05; // 5% — read from /tax-config in production
@@ -287,7 +288,7 @@ function MenuItemCard({ item, disabled }: { item: MenuItem; disabled?: boolean }
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
           {item.image_url ? (
             <img
-              src={item.image_url}
+              src={getThumbnailUrl(item.image_url, { width: 420, height: 315 })}
               alt={item.name}
               className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
