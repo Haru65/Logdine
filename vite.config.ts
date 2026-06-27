@@ -63,12 +63,14 @@ export default defineConfig(({ mode }) => {
         navigateFallbackDenylist: [/^\/api\//, /^\/admin\//, /^\/auth\//],
         runtimeCaching: [
           {
-            // Cache GET requests to admin/public APIs with network-first
+            // Public customer APIs can be served briefly from cache when offline.
+            // Authenticated admin APIs are intentionally excluded because menu
+            // payloads can be large and should not be cloned into Cache Storage.
             urlPattern: ({ url }) =>
-              url.pathname.startsWith('/admin') || url.pathname.startsWith('/api/public'),
+              url.pathname.startsWith('/api/public'),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'restrohub-api',
+              cacheName: 'restrohub-public-api',
               networkTimeoutSeconds: 4,
               expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 },
               cacheableResponse: { statuses: [0, 200] },
