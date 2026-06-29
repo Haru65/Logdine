@@ -34,6 +34,17 @@ function requireTenantId(tenantId: string | null): string {
   return tenantId;
 }
 
+function tableSortValue(table: RestaurantTable) {
+  return table.table_number || table.name || table.identifier || '';
+}
+
+function compareTablesAsc(a: RestaurantTable, b: RestaurantTable) {
+  return tableSortValue(a).localeCompare(tableSortValue(b), undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
+}
+
 // ------------------------------ Dashboard --------------------------------
 export function useDashboardMetrics() {
   const tenantId = useTenantId();
@@ -81,6 +92,7 @@ export function useTables() {
   return useQuery({
     queryKey: tenantId ? qk.tables(tenantId) : ['tables', 'none'],
     queryFn: () => restaurantService.getTables(requireTenantId(tenantId)),
+    select: (tables) => [...tables].sort(compareTablesAsc),
     enabled: Boolean(tenantId),
   });
 }

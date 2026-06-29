@@ -12,7 +12,6 @@ import {
   Soup,
   Table2,
   TrendingUp,
-  Users,
 } from 'lucide-react';
 import {
   Area,
@@ -209,14 +208,14 @@ export default function DashboardPage() {
                   return (
                     <button
                       key={t.id}
-                      className={`group relative aspect-square rounded-xl border border-border/60 bg-background p-2 text-left transition-all hover:-translate-y-0.5 hover:shadow-soft hover:ring-2 ${s.ring}`}
+                      type="button"
+                      aria-label={`Table ${t.table_number}, ${s.label}, seats ${t.capacity}`}
+                      className={`group relative flex aspect-square items-center justify-center rounded-xl border border-border/60 bg-background p-2 text-center transition-all hover:-translate-y-0.5 hover:shadow-soft hover:ring-2 ${s.ring}`}
                     >
                       <span className={`absolute right-2 top-2 size-2 rounded-full ${s.dot}`} />
-                      <p className="font-mono text-xs text-muted-foreground">T</p>
-                      <p className="font-serif text-xl font-bold">{t.table_number}</p>
-                      <p className="absolute bottom-2 left-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <Users className="size-3" /> {t.capacity}
-                      </p>
+                      <span className="font-serif text-2xl font-bold leading-none text-foreground">
+                        {t.table_number}
+                      </span>
                     </button>
                   );
                 })}
