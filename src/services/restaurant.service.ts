@@ -22,6 +22,19 @@ import type {
 } from '@/types';
 
 const MENU_AI_TIMEOUT_MS = 600_000;
+const tableCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+function getTableSortLabel(table: Partial<RestaurantTable>): string {
+  return String(table.table_number ?? table.name ?? table.identifier ?? '').trim();
+}
+
+function sortTablesNaturally(tables: RestaurantTable[]): RestaurantTable[] {
+  return [...tables].sort((a, b) => {
+    const labelA = getTableSortLabel(a);
+    const labelB = getTableSortLabel(b);
+    return tableCollator.compare(labelA, labelB);
+  });
+}
 
 function normalizePaymentMethod(raw: unknown): Order['payment_method'] {
   const value = String(raw ?? '').toLowerCase();
@@ -169,7 +182,7 @@ export const restaurantService = {
   // -------------------------------- Tables -----------------------------------
   async getTables(tenantId: string): Promise<RestaurantTable[]> {
     const res = await apiClient.get(endpoints.restaurant(tenantId).tables);
-    return unwrap<RestaurantTable[]>(res.data);
+    return sortTablesNaturally(unwrap<RestaurantTable[]>(res.data));
   },
 
   async createTable(tenantId: string, data: Partial<RestaurantTable>): Promise<RestaurantTable> {
@@ -187,7 +200,7 @@ export const restaurantService = {
     const tablesList = Array.isArray(responseData) ? responseData : (responseData.tables || []);
     
     // Map backend response to frontend format
-    return tablesList.map((t: any) => ({
+    return sortTablesNaturally(tablesList.map((t: any) => ({
       id: t.id,
       tenant_id: t.tenant_id,
       name: t.name,
@@ -203,7 +216,7 @@ export const restaurantService = {
       qr_scan_count: t.qr_scan_count || 0,
       last_qr_scan_at: t.last_qr_scan_at,
       is_active: t.is_active,
-    }));
+    })));
   },
 
   async updateTable(
