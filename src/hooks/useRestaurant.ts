@@ -218,9 +218,27 @@ export function useDeleteItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => restaurantService.deleteItem(requireTenantId(tenantId), id),
+    onMutate: async (id) => {
+      if (!tenantId) return { prev: undefined };
+      await qc.cancelQueries({ queryKey: qk.items(tenantId) });
+      const prev = qc.getQueryData<MenuItem[]>(qk.items(tenantId));
+      if (prev) {
+        qc.setQueryData<MenuItem[]>(
+          qk.items(tenantId),
+          prev.filter((item) => item.id !== id),
+        );
+      }
+      return { prev };
+    },
     onSuccess: () => {
-      if (tenantId) qc.invalidateQueries({ queryKey: qk.items(tenantId) });
       toast.success('Item deleted');
+    },
+    onError: (_err, _id, ctx) => {
+      if (tenantId && ctx?.prev) qc.setQueryData(qk.items(tenantId), ctx.prev);
+      toast.error('Failed to delete item');
+    },
+    onSettled: () => {
+      if (tenantId) qc.invalidateQueries({ queryKey: qk.items(tenantId) });
     },
   });
 }

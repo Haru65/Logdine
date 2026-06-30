@@ -286,6 +286,7 @@ function ItemRow({
             </div>
             <div className="flex shrink-0 gap-1">
               <button
+                type="button"
                 onClick={onEdit}
                 className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                 aria-label="Edit"
@@ -293,6 +294,7 @@ function ItemRow({
                 <Pencil className="size-4" />
               </button>
               <button
+                type="button"
                 onClick={onDelete}
                 className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 aria-label="Delete"
