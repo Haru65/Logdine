@@ -165,6 +165,7 @@ export default function PublicMenuPage() {
       }
       const createdOrder = await publicOrderService.createOrder(slug, table, {
         paymentMethod: method === 'paytm' ? 'online' : 'cash',
+        paymentAccountId: method === 'paytm' ? paytmOption?.accountId || undefined : undefined,
         notes: cart.notes,
         items: cart.items.map((line) => (
           line.combo_id

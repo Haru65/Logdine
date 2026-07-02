@@ -80,6 +80,7 @@ export interface CreateOrderPayload {
     notes?: string;
   }>;
   paymentMethod: PaymentMethod;
+  paymentAccountId?: string;
   notes?: string;
   customer_name?: string;
   customer_phone?: string;

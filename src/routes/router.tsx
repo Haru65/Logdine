@@ -20,6 +20,7 @@ const IntegrationConfigPage = lazy(() => import('@/pages/admin/IntegrationConfig
 const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
 const PublicMenuPage = lazy(() => import('@/pages/public/PublicMenuPage'));
 const OrderStatusPage = lazy(() => import('@/pages/public/OrderStatusPage'));
+const PaymentStatusPage = lazy(() => import('@/pages/public/PaymentStatusPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 const withSuspense = (node: React.ReactNode) => <Suspense fallback={<PageLoader />}>{node}</Suspense>;
@@ -70,6 +71,10 @@ export const router = createBrowserRouter([
   {
     path: '/order/:slug/:table',
     element: withSuspense(<PublicMenuPage />),
+  },
+  {
+    path: '/payment-status',
+    element: withSuspense(<PaymentStatusPage />),
   },
 
   // -------------------- 404 --------------------

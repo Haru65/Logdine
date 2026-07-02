@@ -89,10 +89,10 @@ export const endpoints = {
     paymentWebhook: '/api/public/payment/webhook',
   },
   paytm: {
-    createTransaction: '/api/paytm/create-transaction',
-    createOrder: '/api/paytm/create-order',
-    verify: '/api/paytm/verify',
-    callback: '/api/paytm/callback',
+    createTransaction: '/api/paytm-production/create-transaction',
+    createOrder: '/api/paytm-production/create-order',
+    verify: '/api/paytm-production/verify',
+    callback: '/payments/paytm/callback',
   },
   webhooks: {
     razorpay: '/api/webhooks/razorpay',
