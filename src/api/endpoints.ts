@@ -68,6 +68,7 @@ export const endpoints = {
 
     paymentConfig: `/admin/restaurant/${tenantId}/payment-config`,
     paymentValidate: `/admin/restaurant/${tenantId}/payment-config/validate`,
+    paymentSettings: `/admin/restaurant/${tenantId}/payment-settings`,
 
     convertToJson: `/admin/restaurant/${tenantId}/menu/convert-to-json`,
     ocrProcess: `/admin/restaurant/${tenantId}/ocr/process`,

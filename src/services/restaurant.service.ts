@@ -12,6 +12,7 @@ import type {
   Order,
   OrderStatus,
   PaymentConfig,
+  PaymentSettings,
   PaymentProvider,
   PaymentStatus,
   ProductReport,
@@ -58,6 +59,8 @@ function normalizeOrder(raw: unknown): Order {
     status: status ?? 'pending',
     payment_status: paymentStatus === 'completed' ? 'paid' : paymentStatus,
     payment_method: normalizePaymentMethod(order.payment_method ?? order.paymentMethod ?? order.payment_provider),
+    source_type: order.source_type ?? order.sourceType,
+    order_source: order.order_source ?? order.orderSource ?? (order.source_type === 'table' || order.sourceType === 'table' ? 'qr' : order.source_type ?? order.sourceType),
     total_amount: Number(order.total_amount ?? order.totalAmount ?? order.total ?? 0),
     tax_amount: Number(order.tax_amount ?? order.taxAmount ?? 0),
     discount_amount: Number(order.discount_amount ?? order.discountAmount ?? 0),
@@ -515,6 +518,16 @@ export const restaurantService = {
   async getPaymentConfig(tenantId: string, provider: PaymentProvider): Promise<PaymentConfig | null> {
     const res = await apiClient.get(endpoints.restaurant(tenantId).paymentConfig, { params: { provider } });
     return unwrap<PaymentConfig | null>(res.data);
+  },
+
+  async getPaymentSettings(tenantId: string): Promise<PaymentSettings> {
+    const res = await apiClient.get(endpoints.restaurant(tenantId).paymentSettings);
+    return unwrap<PaymentSettings>(res.data);
+  },
+
+  async updatePaymentSettings(tenantId: string, data: PaymentSettings): Promise<PaymentSettings> {
+    const res = await apiClient.put(endpoints.restaurant(tenantId).paymentSettings, data);
+    return unwrap<PaymentSettings>(res.data);
   },
 
   async savePaymentConfig(tenantId: string, data: PaymentConfig): Promise<PaymentConfig> {

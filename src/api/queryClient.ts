@@ -41,6 +41,7 @@ export const qk = {
   offers: (tenantId: string) => ['offers', tenantId] as const,
   combos: (tenantId: string) => ['combos', tenantId] as const,
   paymentConfig: (tenantId: string, provider: string) => ['payment-config', tenantId, provider] as const,
+  paymentSettings: (tenantId: string) => ['payment-settings', tenantId] as const,
   integrationConfig: (tenantId: string, provider: string) => ['integration-config', tenantId, provider] as const,
 
   publicMenu: (slug: string, table: string) => ['public', 'menu', slug, table] as const,

@@ -13,6 +13,7 @@ import type {
   OrderStatus,
   PaymentStatus,
   PaymentConfig,
+  PaymentSettings,
   PaymentProvider,
   RestaurantTable,
   TaxConfig,
@@ -441,6 +442,28 @@ export function useSaveTaxConfig() {
 }
 
 // ----------------------- Payment / integrations --------------------------
+export function usePaymentSettings() {
+  const tenantId = useTenantId();
+  return useQuery({
+    queryKey: tenantId ? qk.paymentSettings(tenantId) : ['payment-settings', 'none'],
+    queryFn: () => restaurantService.getPaymentSettings(requireTenantId(tenantId)),
+    enabled: Boolean(tenantId),
+  });
+}
+
+export function useSavePaymentSettings() {
+  const tenantId = useTenantId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: PaymentSettings) => restaurantService.updatePaymentSettings(requireTenantId(tenantId), data),
+    onSuccess: () => {
+      if (tenantId) qc.invalidateQueries({ queryKey: qk.paymentSettings(tenantId) });
+      toast.success('Payment settings saved');
+    },
+    onError: () => toast.error('Failed to save payment settings'),
+  });
+}
+
 export function usePaymentConfig(provider: PaymentProvider) {
   const tenantId = useTenantId();
   return useQuery({

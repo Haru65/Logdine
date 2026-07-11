@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Banknote, Plus, Settings as SettingsIcon, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/auth.store';
-import { useSaveTaxConfig, useTaxConfig, useUpdateRestaurantInfo } from '@/hooks/useRestaurant';
+import {
+  usePaymentSettings,
+  useSavePaymentSettings,
+  useSaveTaxConfig,
+  useTaxConfig,
+  useUpdateRestaurantInfo,
+} from '@/hooks/useRestaurant';
+import type { TaxType } from '@/types';
 
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
@@ -20,20 +27,25 @@ export default function SettingsPage() {
           Settings
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Restaurant profile, taxes, email, and integrations.
+          Restaurant profile, payments, taxes, email, and integrations.
         </p>
       </div>
 
       <Tabs defaultValue="profile">
-        <TabsList className="w-full max-w-md">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="tax">Tax</TabsTrigger>
-          <TabsTrigger value="email">Email</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
+        <TabsList className="h-auto w-full max-w-2xl flex-wrap justify-start">
+          <TabsTrigger value="profile" className="flex-none px-3 sm:flex-1">Profile</TabsTrigger>
+          <TabsTrigger value="payments" className="flex-none px-3 sm:flex-1">Payments</TabsTrigger>
+          <TabsTrigger value="tax" className="flex-none px-3 sm:flex-1">Tax</TabsTrigger>
+          <TabsTrigger value="email" className="flex-none px-3 sm:flex-1">Email</TabsTrigger>
+          <TabsTrigger value="integrations" className="flex-none px-3 sm:flex-1">Integrations</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
           <ProfileSettingsCard user={user} />
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <PaymentSettingsCard />
         </TabsContent>
 
         <TabsContent value="tax">
@@ -149,73 +161,147 @@ function ProfileSettingsCard({ user }: { user: ReturnType<typeof useAuthStore.ge
 function TaxSettingsCard() {
   const { data } = useTaxConfig();
   const save = useSaveTaxConfig();
-  const gst = data?.taxTypes?.find((tax) => tax.id === 'gst') ?? data?.taxTypes?.[0];
-  const [rate, setRate] = useState('0');
+  const [taxes, setTaxes] = useState<TaxType[]>([]);
   const [gstin, setGstin] = useState('');
-  const [active, setActive] = useState(true);
 
   useEffect(() => {
     if (!data) return;
-    setRate(String(gst?.percentage ?? 0));
+    setTaxes(data.taxTypes ?? []);
     setGstin(data.gstin ?? '');
-    setActive(gst?.isActive ?? true);
-  }, [data, gst?.isActive, gst?.percentage]);
+  }, [data]);
 
-  const numericRate = Number(rate);
-  const canSave = Number.isFinite(numericRate) && numericRate >= 0 && numericRate <= 100;
+  const activeTaxTotal = taxes
+    .filter((tax) => tax.isActive)
+    .reduce((sum, tax) => sum + Number(tax.percentage || 0), 0);
+  const canSave = taxes.every((tax) =>
+    tax.name.trim().length > 0 &&
+    Number.isFinite(Number(tax.percentage)) &&
+    Number(tax.percentage) >= 0 &&
+    Number(tax.percentage) <= 100,
+  ) && activeTaxTotal <= 100;
+
+  const updateTax = (id: string, updates: Partial<TaxType>) => {
+    setTaxes((current) => current.map((tax) => tax.id === id ? { ...tax, ...updates } : tax));
+  };
+
+  const addTax = () => {
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `tax-${Date.now()}`;
+    setTaxes((current) => [...current, { id, name: '', percentage: 0, isActive: true }]);
+  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Tax Configuration</CardTitle>
-        <p className="text-sm text-muted-foreground">GST settings applied to customer checkout and order totals.</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-lg">Tax Settings</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">Configure taxes applied to QR checkout and order totals.</p>
+          </div>
+          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addTax}>
+            <Plus className="size-4" /> Add tax
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2">
-        <Field
-          label="GST rate (%)"
-          type="number"
-          min={0}
-          max={100}
-          step="0.01"
-          value={rate}
-          onChange={(event) => setRate(event.target.value)}
-        />
-        <Field
-          label="GSTIN"
-          value={gstin}
-          placeholder="29ABCDE1234F1Z5"
-          onChange={(event) => setGstin(event.target.value.toUpperCase())}
-        />
-        <label className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
-          <span>Apply GST at checkout</span>
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(event) => setActive(event.target.checked)}
-            className="size-4 accent-primary"
-          />
-        </label>
-        <div className="flex items-center justify-end">
+      <CardContent className="space-y-5">
+        {taxes.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            No taxes configured. Checkout totals will not include tax.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {taxes.map((tax) => (
+              <div key={tax.id} className="grid items-end gap-3 rounded-lg border border-border p-3 sm:grid-cols-[1fr_140px_auto_auto]">
+                <Field
+                  label="Tax name"
+                  value={tax.name}
+                  placeholder="GST, Service tax..."
+                  maxLength={80}
+                  onChange={(event) => updateTax(tax.id, { name: event.target.value })}
+                />
+                <Field
+                  label="Rate (%)"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={tax.percentage}
+                  onChange={(event) => updateTax(tax.id, { percentage: Number(event.target.value) })}
+                />
+                <label className="flex h-10 items-center gap-2 whitespace-nowrap text-sm">
+                  <input
+                    type="checkbox"
+                    checked={tax.isActive}
+                    onChange={(event) => updateTax(tax.id, { isActive: event.target.checked })}
+                    className="size-4 accent-primary"
+                  />
+                  Active
+                </label>
+                <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${tax.name || 'tax'}`} onClick={() => setTaxes((current) => current.filter((item) => item.id !== tax.id))}>
+                  <Trash2 className="size-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="GSTIN (optional)" value={gstin} placeholder="29ABCDE1234F1Z5" onChange={(event) => setGstin(event.target.value.toUpperCase())} />
+          <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm">
+            <span className="text-muted-foreground">Total active tax rate</span>
+            <p className="mt-0.5 font-mono text-lg font-bold">{activeTaxTotal.toFixed(2)}%</p>
+          </div>
+        </div>
+
+        {activeTaxTotal > 100 && <p className="text-sm text-destructive">Total active tax rate cannot exceed 100%.</p>}
+
+        <div className="flex justify-end">
           <Button
             disabled={!canSave}
             loading={save.isPending}
             onClick={() =>
               save.mutate({
-                taxTypes: [
-                  {
-                    id: 'gst',
-                    name: 'GST',
-                    percentage: Number(numericRate.toFixed(2)),
-                    isActive: active,
-                  },
-                ],
-                totalTaxTypes: 1,
+                taxTypes: taxes.map((tax) => ({ ...tax, name: tax.name.trim(), percentage: Number(Number(tax.percentage).toFixed(2)) })),
+                totalTaxTypes: taxes.length,
                 gstin: gstin.trim(),
               })
             }
           >
             Save tax settings
           </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PaymentSettingsCard() {
+  const { data, isLoading } = usePaymentSettings();
+  const save = useSavePaymentSettings();
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => {
+    if (data) setEnabled(data.payAtCounterEnabled);
+  }, [data]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg"><Banknote className="size-5 text-primary" /> Payment Methods</CardTitle>
+        <p className="text-sm text-muted-foreground">Choose which payment methods customers can use while ordering from a table QR code.</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
+          <span>
+            <span className="block text-sm font-semibold">Pay at Counter</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">Allow customers to place an order now and pay staff at the counter.</span>
+          </span>
+          <input type="checkbox" checked={enabled} disabled={isLoading} onChange={(event) => setEnabled(event.target.checked)} className="size-5 shrink-0 accent-primary" />
+        </label>
+        {!enabled && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">Customers will need an active online payment method to complete QR checkout.</p>}
+        <div className="flex justify-end">
+          <Button loading={save.isPending} disabled={isLoading} onClick={() => save.mutate({ payAtCounterEnabled: enabled })}>Save payment settings</Button>
         </div>
       </CardContent>
     </Card>

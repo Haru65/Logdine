@@ -323,6 +323,11 @@ function OrderTicket({
                 <Flame className="size-3" /> Late
               </Badge>
             )}
+            {order.order_source === 'qr' && (
+              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-[10px] text-primary">
+                QR order
+              </Badge>
+            )}
             <Badge
               variant={paid ? 'default' : 'outline'}
               className={cn(

@@ -157,6 +157,8 @@ export interface Order {
   status: OrderStatus;
   payment_status: PaymentStatus;
   payment_method?: PaymentMethod;
+  source_type?: string;
+  order_source?: 'qr' | string;
   total_amount: number;
   tax_amount: number;
   discount_amount: number;
@@ -321,6 +323,10 @@ export interface TaxConfig {
   taxTypes: TaxType[];
   totalTaxTypes?: number;
   gstin?: string;
+}
+
+export interface PaymentSettings {
+  payAtCounterEnabled: boolean;
 }
 
 export type IntegrationProvider = 'zomato' | 'swiggy';

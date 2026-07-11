@@ -37,7 +37,7 @@ import type { ComboOffer, MenuAddon, MenuItem, MenuVariant, Order } from '@/type
 type DietFilter = 'all' | 'veg' | 'non-veg';
 type CheckoutPaymentMethod = 'cash' | 'paytm';
 
-const activeOrderStatuses = new Set(['pending', 'confirmed', 'preparing', 'ready']);
+const activeOrderStatuses = new Set(['pending', 'confirmed', 'cooking', 'preparing', 'ready']);
 
 export default function PublicMenuPage() {
   const { slug = '', table = '' } = useParams();
@@ -66,7 +66,9 @@ export default function PublicMenuPage() {
   const subtotal = useCartStore(selectSubtotal);
   const taxes = useMemo(() => getTaxes(subtotal, menuQuery.data?.taxConfig), [subtotal, menuQuery.data?.taxConfig]);
   const total = subtotal + taxes.reduce((sum, tax) => sum + tax.amount, 0);
+  const cashAvailable = menuQuery.data?.paymentOptions?.cash?.isAvailable !== false;
   const paytmOption = menuQuery.data?.paymentOptions?.paytm;
+  const paytmAvailable = paytmOption?.isAvailable === true;
   const cartScope = `${slug}:${table}`;
   const availableItemIds = useMemo(
     () => new Set((menuQuery.data?.items ?? []).map((item) => item.id)),
@@ -96,6 +98,12 @@ export default function PublicMenuPage() {
   }, [availableComboIds, availableItemIds, cart, cart.items, menuQuery.data]);
 
   useEffect(() => {
+    if (!menuQuery.data) return;
+    if (!cashAvailable && paytmAvailable) setPaymentMethod('paytm');
+    if (cashAvailable && !paytmAvailable) setPaymentMethod('cash');
+  }, [cashAvailable, menuQuery.data, paytmAvailable]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const payment = params.get('payment');
     const orderId = params.get('orderId');
@@ -107,11 +115,11 @@ export default function PublicMenuPage() {
       toast.success(payment === 'success' ? 'Payment successful. Your order is confirmed.' : 'Payment already processed.');
       void queryClient.invalidateQueries({ queryKey: ['public', 'table-orders', slug, table] });
     } else if (payment === 'failed') {
-      toast.error('Payment failed. Please try again or pay at the counter.');
+      toast.error(cashAvailable ? 'Payment failed. Please try again or pay at the counter.' : 'Payment failed. Please try again.');
     }
 
     window.history.replaceState({}, '', window.location.pathname);
-  }, [cart, queryClient, slug, table]);
+  }, [cart, cashAvailable, queryClient, slug, table]);
 
   const activeOrder = useMemo(() => {
     return ordersQuery.data?.find((order) => activeOrderStatuses.has(order.status)) ?? null;
@@ -156,6 +164,8 @@ export default function PublicMenuPage() {
 
   const createOrder = useMutation({
     mutationFn: async (method: CheckoutPaymentMethod) => {
+      if (method === 'cash' && !cashAvailable) throw new Error('Pay at Counter is not available.');
+      if (method === 'paytm' && !paytmAvailable) throw new Error('Online payment is not available.');
       const unavailableItems = cart.items.filter((line) =>
         line.combo_id ? !availableComboIds.has(line.combo_id) : !availableItemIds.has(line.menu_item_id),
       );
@@ -450,8 +460,8 @@ export default function PublicMenuPage() {
                 </div>
 
                 <div className="p-6">
-                  <div className="mb-4 grid grid-cols-2 gap-2">
-                    <button
+                  <div className={cn('mb-4 grid gap-2', cashAvailable && paytmAvailable ? 'grid-cols-2' : 'grid-cols-1')}>
+                    {cashAvailable && <button
                       type="button"
                       onClick={() => setPaymentMethod('cash')}
                       className={cn(
@@ -464,8 +474,8 @@ export default function PublicMenuPage() {
                         <span className="block text-sm font-bold">Counter</span>
                         <span className="block truncate text-xs text-muted-foreground">Pay after ordering</span>
                       </span>
-                    </button>
-                    <button
+                    </button>}
+                    {paytmAvailable && <button
                       type="button"
                       onClick={() => setPaymentMethod('paytm')}
                       className={cn(
@@ -478,12 +488,18 @@ export default function PublicMenuPage() {
                         <span className="block text-sm font-bold">Paytm PG</span>
                         <span className="block truncate text-xs text-muted-foreground">{formatCurrency(total)}</span>
                       </span>
-                    </button>
+                    </button>}
                   </div>
+                  {!cashAvailable && !paytmAvailable && (
+                    <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+                      No payment method is currently available. Please ask restaurant staff for assistance.
+                    </p>
+                  )}
                   <Button
                     size="lg"
                     className="h-12 w-full gap-2"
                     loading={createOrder.isPending}
+                    disabled={!cashAvailable && !paytmAvailable}
                     onClick={() => createOrder.mutate(paymentMethod)}
                   >
                     {createOrder.isPending && paymentMethod === 'paytm'
