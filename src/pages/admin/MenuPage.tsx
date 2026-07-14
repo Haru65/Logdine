@@ -9,12 +9,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useBulkUpdateImages,
   useCategories,
+  useCreateCategory,
   useCreateItem,
   useCreateItemsBulk,
   useDeleteItem,
@@ -64,12 +73,15 @@ export default function MenuPage() {
   const { data: items = [], isLoading: itemsLoading } = useMenuItems();
   const updateItem = useUpdateItem();
   const deleteItem = useDeleteItem();
+  const createCategory = useCreateCategory();
 
   const [activeCat, setActiveCat] = useState<string | 'all'>('all');
   const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [categoryName, setCategoryName] = useState('');
 
   const defaultCategoryId = activeCat === 'all' ? categories[0]?.id : activeCat;
 
@@ -80,6 +92,29 @@ export default function MenuPage() {
       return true;
     });
   }, [items, activeCat, search]);
+
+  useEffect(() => {
+    if (activeCat !== 'all' && !categories.some((category) => category.id === activeCat)) {
+      setActiveCat('all');
+    }
+  }, [activeCat, categories]);
+
+  const submitCategory = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = categoryName.trim();
+    if (!name) return;
+
+    createCategory.mutate(
+      { name },
+      {
+        onSuccess: (category) => {
+          setCategoryName('');
+          setCategoryOpen(false);
+          if (category.id) setActiveCat(category.id);
+        },
+      },
+    );
+  };
 
   return (
     <div className="container max-w-full overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6 lg:py-8">
@@ -142,7 +177,12 @@ export default function MenuPage() {
                   );
                 })}
           </div>
-          <Button variant="ghost" size="sm" className="mt-2 w-full justify-start gap-1.5 text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 w-full justify-start gap-1.5 text-muted-foreground"
+            onClick={() => setCategoryOpen(true)}
+          >
             <Plus className="size-3.5" /> New category
           </Button>
         </aside>
@@ -221,6 +261,43 @@ export default function MenuPage() {
           />
         </SheetContent>
       </Sheet>
+
+      <Dialog open={categoryOpen} onOpenChange={setCategoryOpen}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={submitCategory} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>New category</DialogTitle>
+              <DialogDescription>
+                This category will only be available to the current restaurant.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="category-name">Category name</Label>
+              <Input
+                id="category-name"
+                value={categoryName}
+                onChange={(event) => setCategoryName(event.target.value)}
+                placeholder="e.g. Breakfast"
+                autoFocus
+                maxLength={100}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCategoryOpen(false)}
+                disabled={createCategory.isPending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!categoryName.trim() || createCategory.isPending}>
+                {createCategory.isPending ? 'Creating…' : 'Create category'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Sheet open={bulkOpen} onOpenChange={setBulkOpen}>
         <SheetContent side="right" className="w-full max-w-full overflow-y-auto sm:w-3/4 sm:max-w-md">

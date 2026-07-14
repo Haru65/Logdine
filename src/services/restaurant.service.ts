@@ -111,17 +111,29 @@ function normalizeMenuTags(tags: unknown): string[] {
 
 function normalizeMenuItem(raw: unknown): MenuItem {
   const item = raw as Omit<MenuItem, 'tags'> & { tags?: unknown };
+  const availability = (raw as Record<string, unknown>).is_available;
   return {
     ...item,
+    is_available: availability === true || availability === 1 || availability === '1',
     tags: normalizeMenuTags(item.tags),
   };
 }
 
-function prepareMenuItemPayload(data: Partial<MenuItem>): Omit<Partial<MenuItem>, 'tags'> & { tags?: string } {
-  const { tags, ...rest } = data;
-  if (tags === undefined) return rest;
-  return {
+type MenuItemPayload = Omit<Partial<MenuItem>, 'tags' | 'is_available'> & {
+  tags?: string;
+  is_available?: number;
+};
+
+function prepareMenuItemPayload(data: Partial<MenuItem>): MenuItemPayload {
+  const { tags, is_available, ...rest } = data;
+  const payload: MenuItemPayload = {
     ...rest,
+    ...(is_available === undefined ? {} : { is_available: is_available ? 1 : 0 }),
+  };
+
+  if (tags === undefined) return payload;
+  return {
+    ...payload,
     tags: normalizeMenuTags(tags).join(', '),
   };
 }

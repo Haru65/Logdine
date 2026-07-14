@@ -286,10 +286,14 @@ export function useCreateCategory() {
   const tenantId = useTenantId();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<MenuCategory>) =>
+    mutationFn: (data: Pick<MenuCategory, 'name'> & { sort_order?: number }) =>
       restaurantService.createCategory(requireTenantId(tenantId), data),
     onSuccess: () => {
       if (tenantId) qc.invalidateQueries({ queryKey: qk.categories(tenantId) });
+      toast.success('Category created');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || error?.message || 'Could not create category');
     },
   });
 }
