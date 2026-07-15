@@ -75,9 +75,12 @@ export default function PublicMenuPage() {
   const subtotal = useCartStore(selectSubtotal);
   const taxes = useMemo(() => calculateTaxes(subtotal, menuQuery.data?.taxConfig), [subtotal, menuQuery.data?.taxConfig]);
   const total = roundCurrency(subtotal + totalTaxAmount(taxes));
-  const paymentOptions = checkoutOptionsQuery.data ?? menuQuery.data?.paymentOptions;
-  const cashAvailable = paymentOptions?.cash?.isAvailable !== false;
-  const paytmOption = paymentOptions?.paytm;
+  // Live checkout polling is deliberately scoped to cash. Online payment
+  // availability comes only from the menu/payment-provider configuration and
+  // cannot be changed by the Pay at Counter setting.
+  const cashOption = checkoutOptionsQuery.data?.cash ?? menuQuery.data?.paymentOptions?.cash;
+  const cashAvailable = cashOption?.isAvailable !== false;
+  const paytmOption = menuQuery.data?.paymentOptions?.paytm;
   const paytmAvailable = paytmOption?.isAvailable === true;
   const cartScope = `${slug}:${table}`;
   const availableItemIds = useMemo(

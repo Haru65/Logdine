@@ -21,6 +21,7 @@ export interface PublicMenuResponse {
 }
 
 export type PublicPaymentOptions = NonNullable<PublicMenuResponse['paymentOptions']>;
+export type PublicCheckoutOptions = Pick<PublicPaymentOptions, 'cash'>;
 
 type PublicMenuCategory = MenuCategory & { items?: MenuItem[] };
 
@@ -126,7 +127,7 @@ export const publicOrderService = {
     };
   },
 
-  async getCheckoutOptions(slug: string, qrToken: string): Promise<PublicPaymentOptions> {
+  async getCheckoutOptions(slug: string, qrToken: string): Promise<PublicCheckoutOptions> {
     const res = await apiClient.get(endpoints.public.checkoutOptions(slug, qrToken));
     const data = unwrap<{ paymentOptions?: PublicMenuResponse['paymentOptions'] }>(res.data);
 
@@ -135,10 +136,6 @@ export const publicOrderService = {
         isAvailable: data.paymentOptions?.cash?.isAvailable === undefined
           ? true
           : toBool(data.paymentOptions.cash.isAvailable),
-      },
-      paytm: {
-        ...data.paymentOptions?.paytm,
-        isAvailable: toBool(data.paymentOptions?.paytm?.isAvailable),
       },
     };
   },
