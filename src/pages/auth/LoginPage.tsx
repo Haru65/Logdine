@@ -2,15 +2,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
 import {
   ArrowRight,
-  BarChart3,
-  CheckCircle2,
+  ClipboardList,
+  CreditCard,
   Eye,
   EyeOff,
   LockKeyhole,
   Mail,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
-  UtensilsCrossed,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -161,16 +161,16 @@ export default function LoginPage() {
 
           <motion.div initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2, duration: 0.55 }} className="max-w-xl text-white">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#12d9a0]/25 bg-[#08bd88]/10 px-3 py-1.5 text-xs font-semibold text-[#54e1b8]">
-              <Sparkles className="size-3.5" /> Everything your restaurant needs
+              <Sparkles className="size-3.5" /> Everything Your Café Needs
             </div>
-            <h2 className="font-serif text-5xl font-bold leading-[1.08] tracking-tight xl:text-6xl">Run every service<br /><span className="text-[#42d7ac]">with confidence.</span></h2>
-            <p className="mt-5 max-w-lg text-base leading-7 text-white/65">From the first QR order to the final bill, keep your team in sync and your guests looked after.</p>
+            <h2 className="font-serif text-5xl font-bold leading-[1.08] tracking-tight xl:text-6xl">Manage every order<br /><span className="text-[#42d7ac]">with confidence.</span></h2>
+            <p className="mt-5 max-w-lg text-base leading-7 text-white/65">From QR ordering to billing and kitchen updates, keep your café running smoothly from a single dashboard.</p>
 
             <div className="mt-9 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
               {[
-                { icon: UtensilsCrossed, title: 'Live orders', copy: 'Kitchen-ready' },
-                { icon: BarChart3, title: 'Clear insights', copy: 'Real-time reports' },
-                { icon: CheckCircle2, title: 'Simple control', copy: 'One workspace' },
+                { icon: ShoppingCart, title: 'Smart Orders', copy: 'QR & Counter Orders' },
+                { icon: ClipboardList, title: 'Live Kitchen', copy: 'Real-time Order Status' },
+                { icon: CreditCard, title: 'Easy Billing', copy: 'Fast & Secure Payments' },
               ].map(({ icon: Icon, title, copy }, index) => (
                 <motion.div key={title} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 + index * 0.08 }} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 backdrop-blur-sm">
                   <div className="mb-3 grid size-9 place-items-center rounded-xl bg-[#08bd88]/15 text-[#42d7ac]"><Icon className="size-[18px]" /></div>
@@ -181,7 +181,7 @@ export default function LoginPage() {
             </div>
           </motion.div>
 
-          <p className="text-xs text-white/40">Complete POS &amp; Restaurant Management Solution</p>
+          <p className="text-xs text-white/40">Complete Café Ordering &amp; Management Solution</p>
         </div>
       </section>
     </main>
