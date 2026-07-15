@@ -55,6 +55,14 @@ export default function PublicMenuPage() {
     queryFn: () => publicOrderService.getMenu(slug, table),
   });
 
+  const checkoutOptionsQuery = useQuery({
+    queryKey: ['public', 'checkout-options', slug, table],
+    queryFn: () => publicOrderService.getCheckoutOptions(slug, table),
+    enabled: Boolean(slug && table && menuQuery.data),
+    refetchInterval: 5_000,
+    staleTime: 0,
+  });
+
   const ordersQuery = useQuery({
     queryKey: ['public', 'table-orders', slug, table],
     queryFn: () => publicOrderService.getTableOrders(slug, table),
@@ -67,8 +75,9 @@ export default function PublicMenuPage() {
   const subtotal = useCartStore(selectSubtotal);
   const taxes = useMemo(() => calculateTaxes(subtotal, menuQuery.data?.taxConfig), [subtotal, menuQuery.data?.taxConfig]);
   const total = roundCurrency(subtotal + totalTaxAmount(taxes));
-  const cashAvailable = menuQuery.data?.paymentOptions?.cash?.isAvailable !== false;
-  const paytmOption = menuQuery.data?.paymentOptions?.paytm;
+  const paymentOptions = checkoutOptionsQuery.data ?? menuQuery.data?.paymentOptions;
+  const cashAvailable = paymentOptions?.cash?.isAvailable !== false;
+  const paytmOption = paymentOptions?.paytm;
   const paytmAvailable = paytmOption?.isAvailable === true;
   const cartScope = `${slug}:${table}`;
   const availableItemIds = useMemo(

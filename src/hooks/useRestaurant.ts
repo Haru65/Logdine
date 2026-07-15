@@ -462,6 +462,8 @@ export function useSavePaymentSettings() {
     mutationFn: (data: PaymentSettings) => restaurantService.updatePaymentSettings(requireTenantId(tenantId), data),
     onSuccess: () => {
       if (tenantId) qc.invalidateQueries({ queryKey: qk.paymentSettings(tenantId) });
+      qc.invalidateQueries({ queryKey: ['public', 'checkout-options'] });
+      qc.invalidateQueries({ queryKey: ['public', 'menu'] });
       toast.success('Payment settings saved');
     },
     onError: (error: any) => toast.error(error?.message || 'Failed to save payment settings'),

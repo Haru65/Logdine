@@ -63,6 +63,13 @@ export default defineConfig(({ mode }) => {
         navigateFallbackDenylist: [/^\/api\//, /^\/admin\//, /^\/auth\//],
         runtimeCaching: [
           {
+            // Payment-method availability must always reflect the current
+            // restaurant setting, even when an older menu is cached offline.
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith('/api/public/checkout-options/'),
+            handler: 'NetworkOnly',
+          },
+          {
             // Public customer APIs can be served briefly from cache when offline.
             // Authenticated admin APIs are intentionally excluded because menu
             // payloads can be large and should not be cloned into Cache Storage.

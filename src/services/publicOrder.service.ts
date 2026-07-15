@@ -20,6 +20,8 @@ export interface PublicMenuResponse {
   taxConfig?: TaxConfig | null;
 }
 
+export type PublicPaymentOptions = NonNullable<PublicMenuResponse['paymentOptions']>;
+
 type PublicMenuCategory = MenuCategory & { items?: MenuItem[] };
 
 const toBool = (value: unknown) => value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true';
@@ -120,6 +122,23 @@ export const publicOrderService = {
           ...data.paymentOptions?.paytm,
           isAvailable: toBool(data.paymentOptions?.paytm?.isAvailable),
         },
+      },
+    };
+  },
+
+  async getCheckoutOptions(slug: string, qrToken: string): Promise<PublicPaymentOptions> {
+    const res = await apiClient.get(endpoints.public.checkoutOptions(slug, qrToken));
+    const data = unwrap<{ paymentOptions?: PublicMenuResponse['paymentOptions'] }>(res.data);
+
+    return {
+      cash: {
+        isAvailable: data.paymentOptions?.cash?.isAvailable === undefined
+          ? true
+          : toBool(data.paymentOptions.cash.isAvailable),
+      },
+      paytm: {
+        ...data.paymentOptions?.paytm,
+        isAvailable: toBool(data.paymentOptions?.paytm?.isAvailable),
       },
     };
   },

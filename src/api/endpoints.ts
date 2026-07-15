@@ -82,6 +82,7 @@ export const endpoints = {
   public: {
     health: '/api/public/health',
     menu: (slug: string, qrToken: string) => `/api/public/menu/${slug}/${qrToken}`,
+    checkoutOptions: (slug: string, qrToken: string) => `/api/public/checkout-options/${slug}/${qrToken}`,
     order: (slug: string, qrToken: string) => `/api/public/order/${slug}/${qrToken}`,
     orderStatus: (slug: string, orderId: string) => `/api/public/order/${slug}/${orderId}`,
     tableOrders: (slug: string, qrToken: string) => `/api/public/table-orders/${slug}/${qrToken}`,
