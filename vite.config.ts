@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
         display: 'standalone',
         display_override: ['standalone', 'minimal-ui'],
         scope: '/',
-        start_url: '/',
+        start_url: '/customer-launch',
         lang: 'en',
         categories: ['business', 'food', 'productivity'],
         icons: [

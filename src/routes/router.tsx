@@ -18,6 +18,7 @@ const ComboManagementPage = lazy(() => import('@/pages/admin/ComboManagementPage
 const PaymentConfigPage = lazy(() => import('@/pages/admin/PaymentConfigPage'));
 const IntegrationConfigPage = lazy(() => import('@/pages/admin/IntegrationConfigPage'));
 const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
+const CustomerLaunchPage = lazy(() => import('@/pages/public/CustomerLaunchPage'));
 const PublicMenuPage = lazy(() => import('@/pages/public/PublicMenuPage'));
 const OrderStatusPage = lazy(() => import('@/pages/public/OrderStatusPage'));
 const PaymentStatusPage = lazy(() => import('@/pages/public/PaymentStatusPage'));
@@ -60,6 +61,10 @@ export const router = createBrowserRouter([
   },
 
   // -------------------- PUBLIC (customer QR ordering) --------------------
+  {
+    path: '/customer-launch',
+    element: withSuspense(<CustomerLaunchPage />),
+  },
   {
     path: '/m',
     element: <PublicLayout />,

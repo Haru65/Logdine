@@ -74,13 +74,11 @@ export default function LoginPage() {
           transition={{ duration: 0.45, ease: 'easeOut' }}
           className="relative w-full max-w-[440px] rounded-[28px] border border-white/80 bg-white/90 p-6 shadow-[0_24px_70px_rgba(32,42,59,0.11)] backdrop-blur-sm sm:p-9"
         >
-          <div className="flex items-center gap-3">
-            <img src="/logdine-logo.png" alt="" className="size-14 rounded-2xl shadow-[0_8px_20px_rgba(8,189,136,0.18)]" />
-            <div>
-              <p className="text-xl font-extrabold tracking-[-0.03em] text-[#202a3b]">LogDine Restro</p>
-              <p className="mt-0.5 text-xs font-semibold text-[#08a979]">Restaurant Management System</p>
-            </div>
-          </div>
+          <img
+            src="/jbxng_LogDine%20Cafe%20Logo.png"
+            alt="LogDine Café — Smart Cafe Management System"
+            className="h-auto w-full max-w-[350px]"
+          />
 
           <div className="mt-9">
             <h1 className="font-serif text-[34px] font-bold leading-tight tracking-tight text-[#202a3b]">Welcome back</h1>
@@ -156,9 +154,7 @@ export default function LoginPage() {
         <div className="absolute -right-24 top-16 size-80 rounded-full border border-white/5" />
         <div className="absolute -right-8 top-32 size-52 rounded-full border border-white/5" />
 
-        <div className="relative z-10 flex h-full flex-col justify-between p-10 xl:p-14">
-          <img src="/logdinelogo2.png" alt="LogDine" className="h-auto w-64" />
-
+        <div className="relative z-10 flex h-full flex-col justify-center p-10 xl:p-14">
           <motion.div initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2, duration: 0.55 }} className="max-w-xl text-white">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#12d9a0]/25 bg-[#08bd88]/10 px-3 py-1.5 text-xs font-semibold text-[#54e1b8]">
               <Sparkles className="size-3.5" /> Everything Your Café Needs
@@ -181,7 +177,7 @@ export default function LoginPage() {
             </div>
           </motion.div>
 
-          <p className="text-xs text-white/40">Complete Café Ordering &amp; Management Solution</p>
+          <p className="absolute bottom-10 left-10 text-xs text-white/40 xl:bottom-14 xl:left-14">Complete Café Ordering &amp; Management Solution</p>
         </div>
       </section>
     </main>

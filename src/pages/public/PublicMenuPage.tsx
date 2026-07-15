@@ -33,6 +33,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn, formatCurrency, timeAgo } from '@/lib/utils';
 import { getThumbnailUrl } from '@/lib/imageUrl';
 import { calculateTaxes, roundCurrency, totalTaxAmount } from '@/lib/taxes';
+import { rememberCustomerLaunchPath } from '@/pwa/customerLaunch';
 import type { ComboOffer, MenuAddon, MenuItem, MenuVariant, Order } from '@/types';
 
 type DietFilter = 'all' | 'veg' | 'non-veg';
@@ -91,6 +92,11 @@ export default function PublicMenuPage() {
     () => new Set((menuQuery.data?.combos ?? []).map((combo) => combo.id)),
     [menuQuery.data?.combos],
   );
+
+  useEffect(() => {
+    if (!slug || !table) return;
+    rememberCustomerLaunchPath(window.location.pathname);
+  }, [slug, table]);
 
   useEffect(() => {
     if (!slug || !table) return;
