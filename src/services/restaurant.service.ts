@@ -21,6 +21,7 @@ import type {
   TaxConfig,
   Tenant,
 } from '@/types';
+import { normalizeTaxConfig } from '@/lib/taxes';
 
 const MENU_AI_TIMEOUT_MS = 600_000;
 const tableCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -440,12 +441,12 @@ export const restaurantService = {
   // ---------------------------- Tax & config -------------------------------
   async getTaxConfig(tenantId: string): Promise<TaxConfig> {
     const res = await apiClient.get(endpoints.restaurant(tenantId).taxConfig);
-    return unwrap<TaxConfig>(res.data);
+    return normalizeTaxConfig(unwrap<unknown>(res.data));
   },
 
   async updateTaxConfig(tenantId: string, config: TaxConfig): Promise<TaxConfig> {
     const res = await apiClient.put(endpoints.restaurant(tenantId).taxConfig, config);
-    return unwrap<TaxConfig>(res.data);
+    return normalizeTaxConfig(unwrap<unknown>(res.data));
   },
 
   async getTaxLogs(tenantId: string): Promise<unknown[]> {
@@ -534,12 +535,16 @@ export const restaurantService = {
 
   async getPaymentSettings(tenantId: string): Promise<PaymentSettings> {
     const res = await apiClient.get(endpoints.restaurant(tenantId).paymentSettings);
-    return unwrap<PaymentSettings>(res.data);
+    const data = unwrap<Record<string, unknown>>(res.data);
+    const raw = data.payAtCounterEnabled ?? data.pay_at_counter_enabled;
+    return { payAtCounterEnabled: raw !== false && raw !== 0 && raw !== '0' && String(raw).toLowerCase() !== 'false' };
   },
 
   async updatePaymentSettings(tenantId: string, data: PaymentSettings): Promise<PaymentSettings> {
     const res = await apiClient.put(endpoints.restaurant(tenantId).paymentSettings, data);
-    return unwrap<PaymentSettings>(res.data);
+    const updated = unwrap<Record<string, unknown>>(res.data);
+    const raw = updated.payAtCounterEnabled ?? updated.pay_at_counter_enabled;
+    return { payAtCounterEnabled: raw !== false && raw !== 0 && raw !== '0' && String(raw).toLowerCase() !== 'false' };
   },
 
   async savePaymentConfig(tenantId: string, data: PaymentConfig): Promise<PaymentConfig> {

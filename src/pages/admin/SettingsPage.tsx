@@ -159,7 +159,7 @@ function ProfileSettingsCard({ user }: { user: ReturnType<typeof useAuthStore.ge
 }
 
 function TaxSettingsCard() {
-  const { data } = useTaxConfig();
+  const { data, isLoading, isError, refetch } = useTaxConfig();
   const save = useSaveTaxConfig();
   const [taxes, setTaxes] = useState<TaxType[]>([]);
   const [gstin, setGstin] = useState('');
@@ -199,13 +199,24 @@ function TaxSettingsCard() {
             <CardTitle className="text-lg">Tax Settings</CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">Configure taxes applied to QR checkout and order totals.</p>
           </div>
-          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addTax}>
+          <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled={isLoading || isError} onClick={addTax}>
             <Plus className="size-4" /> Add tax
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        {taxes.length === 0 ? (
+        {isLoading ? (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            Loading saved tax settings…
+          </div>
+        ) : isError ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
+            <p className="text-destructive">Could not load tax settings. No changes can be saved until the current configuration is available.</p>
+            <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void refetch()}>
+              Try again
+            </Button>
+          </div>
+        ) : taxes.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
             No taxes configured. Checkout totals will not include tax.
           </div>
@@ -258,7 +269,7 @@ function TaxSettingsCard() {
 
         <div className="flex justify-end">
           <Button
-            disabled={!canSave}
+            disabled={!canSave || isLoading || isError}
             loading={save.isPending}
             onClick={() =>
               save.mutate({
@@ -277,7 +288,7 @@ function TaxSettingsCard() {
 }
 
 function PaymentSettingsCard() {
-  const { data, isLoading } = usePaymentSettings();
+  const { data, isLoading, isError, refetch } = usePaymentSettings();
   const save = useSavePaymentSettings();
   const [enabled, setEnabled] = useState(true);
 
@@ -292,16 +303,24 @@ function PaymentSettingsCard() {
         <p className="text-sm text-muted-foreground">Choose which payment methods customers can use while ordering from a table QR code.</p>
       </CardHeader>
       <CardContent className="space-y-4">
+        {isError && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
+            <p className="text-destructive">Could not load payment settings. The saved Pay at Counter value has not been changed.</p>
+            <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void refetch()}>
+              Try again
+            </Button>
+          </div>
+        )}
         <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
           <span>
             <span className="block text-sm font-semibold">Pay at Counter</span>
             <span className="mt-0.5 block text-xs text-muted-foreground">Allow customers to place an order now and pay staff at the counter.</span>
           </span>
-          <input type="checkbox" checked={enabled} disabled={isLoading} onChange={(event) => setEnabled(event.target.checked)} className="size-5 shrink-0 accent-primary" />
+          <input type="checkbox" checked={enabled} disabled={isLoading || isError} onChange={(event) => setEnabled(event.target.checked)} className="size-5 shrink-0 accent-primary" />
         </label>
         {!enabled && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">Customers will need an active online payment method to complete QR checkout.</p>}
         <div className="flex justify-end">
-          <Button loading={save.isPending} disabled={isLoading} onClick={() => save.mutate({ payAtCounterEnabled: enabled })}>Save payment settings</Button>
+          <Button loading={save.isPending} disabled={isLoading || isError || !data} onClick={() => save.mutate({ payAtCounterEnabled: enabled })}>Save payment settings</Button>
         </div>
       </CardContent>
     </Card>

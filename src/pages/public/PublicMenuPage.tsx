@@ -32,6 +32,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Textarea } from '@/components/ui/textarea';
 import { cn, formatCurrency, timeAgo } from '@/lib/utils';
 import { getThumbnailUrl } from '@/lib/imageUrl';
+import { calculateTaxes, roundCurrency, totalTaxAmount } from '@/lib/taxes';
 import type { ComboOffer, MenuAddon, MenuItem, MenuVariant, Order } from '@/types';
 
 type DietFilter = 'all' | 'veg' | 'non-veg';
@@ -64,8 +65,8 @@ export default function PublicMenuPage() {
   const cart = useCartStore();
   const itemCount = useCartStore(selectItemCount);
   const subtotal = useCartStore(selectSubtotal);
-  const taxes = useMemo(() => getTaxes(subtotal, menuQuery.data?.taxConfig), [subtotal, menuQuery.data?.taxConfig]);
-  const total = subtotal + taxes.reduce((sum, tax) => sum + tax.amount, 0);
+  const taxes = useMemo(() => calculateTaxes(subtotal, menuQuery.data?.taxConfig), [subtotal, menuQuery.data?.taxConfig]);
+  const total = roundCurrency(subtotal + totalTaxAmount(taxes));
   const cashAvailable = menuQuery.data?.paymentOptions?.cash?.isAvailable !== false;
   const paytmOption = menuQuery.data?.paymentOptions?.paytm;
   const paytmAvailable = paytmOption?.isAvailable === true;
@@ -857,19 +858,4 @@ function BillRow({ label, value, bold, muted }: { label: string; value: string; 
       <span>{value}</span>
     </div>
   );
-}
-
-function getTaxes(
-  subtotal: number,
-  taxConfig?: {
-    taxTypes?: Array<{ id: string; name: string; percentage: number; isActive: boolean | number | string }>;
-  } | null,
-) {
-  return (taxConfig?.taxTypes ?? [])
-    .filter((tax) => (tax.isActive === true || tax.isActive === 1 || tax.isActive === '1' || String(tax.isActive).toLowerCase() === 'true') && Number(tax.percentage) > 0)
-    .map((tax) => ({
-      ...tax,
-      percentage: Number(tax.percentage),
-      amount: (subtotal * Number(tax.percentage)) / 100,
-    }));
 }

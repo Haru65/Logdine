@@ -1,6 +1,7 @@
 import apiClient, { unwrap } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
-import type { ComboOffer, MenuAddon, MenuCategory, MenuItem, MenuVariant, Order, PaymentMethod, RestaurantTable, Tenant } from '@/types';
+import type { ComboOffer, MenuAddon, MenuCategory, MenuItem, MenuVariant, Order, PaymentMethod, RestaurantTable, TaxConfig, Tenant } from '@/types';
+import { normalizeTaxConfig } from '@/lib/taxes';
 
 export interface PublicMenuResponse {
   restaurant: Tenant;
@@ -16,15 +17,7 @@ export interface PublicMenuResponse {
       accountLabel?: string | null;
     };
   };
-  taxConfig?: {
-    taxTypes?: Array<{
-      id: string;
-      name: string;
-      percentage: number;
-      isActive: boolean | number | string;
-    }>;
-    gstin?: string;
-  } | null;
+  taxConfig?: TaxConfig | null;
 }
 
 type PublicMenuCategory = MenuCategory & { items?: MenuItem[] };
@@ -116,6 +109,18 @@ export const publicOrderService = {
       categories,
       items,
       combos: (data.combos ?? []).map(normalizeCombo),
+      taxConfig: normalizeTaxConfig(data.taxConfig),
+      paymentOptions: {
+        cash: {
+          isAvailable: data.paymentOptions?.cash?.isAvailable === undefined
+            ? true
+            : toBool(data.paymentOptions.cash.isAvailable),
+        },
+        paytm: {
+          ...data.paymentOptions?.paytm,
+          isAvailable: toBool(data.paymentOptions?.paytm?.isAvailable),
+        },
+      },
     };
   },
 

@@ -19,24 +19,24 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { useCategories, useMenuItems, useTables } from '@/hooks/useRestaurant';
+import { useCategories, useMenuItems, useTables, useTaxConfig } from '@/hooks/useRestaurant';
 import { useCartStore, selectItemCount, selectSubtotal } from '@/store/cart.store';
 import { cn, formatCurrency } from '@/lib/utils';
 import { getThumbnailUrl } from '@/lib/imageUrl';
+import { calculateTaxes, roundCurrency, totalTaxAmount, type CalculatedTax } from '@/lib/taxes';
 import type { MenuItem, OrderType } from '@/types';
-
-const TAX_RATE = 0.05; // 5% — read from /tax-config in production
 
 export default function POSPage() {
   const { data: categories = [], isLoading: catsLoading } = useCategories();
   const { data: items = [], isLoading: itemsLoading } = useMenuItems();
   const { data: tables = [] } = useTables();
+  const { data: taxConfig } = useTaxConfig();
 
   const cart = useCartStore();
   const itemCount = useCartStore(selectItemCount);
   const subtotal = useCartStore(selectSubtotal);
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + tax;
+  const taxes = useMemo(() => calculateTaxes(subtotal, taxConfig), [subtotal, taxConfig]);
+  const total = roundCurrency(subtotal + totalTaxAmount(taxes));
 
   const [activeCategory, setActiveCategory] = useState<string | 'all'>('all');
   const [search, setSearch] = useState('');
@@ -203,7 +203,7 @@ export default function POSPage() {
         {/* ============ CART PANEL (desktop) ============ */}
         <div className="hidden xl:block">
           <div className="sticky top-20">
-            <CartPanel subtotal={subtotal} tax={tax} total={total} />
+            <CartPanel subtotal={subtotal} taxes={taxes} total={total} />
           </div>
         </div>
       </div>
@@ -223,7 +223,7 @@ export default function POSPage() {
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="h-[88vh] overflow-y-auto p-0">
-            <CartPanel subtotal={subtotal} tax={tax} total={total} embedded />
+            <CartPanel subtotal={subtotal} taxes={taxes} total={total} embedded />
           </SheetContent>
         </Sheet>
       </div>
@@ -349,12 +349,12 @@ function VegIndicator({ isVeg }: { isVeg: boolean }) {
 
 function CartPanel({
   subtotal,
-  tax,
+  taxes,
   total,
   embedded = false,
 }: {
   subtotal: number;
-  tax: number;
+  taxes: CalculatedTax[];
   total: number;
   embedded?: boolean;
 }) {
@@ -455,7 +455,14 @@ function CartPanel({
       {/* Totals */}
       <div className="space-y-1.5 border-t border-border/60 bg-muted/30 px-5 py-4 text-sm">
         <Row label="Subtotal" value={formatCurrency(subtotal)} />
-        <Row label={`Tax (${(TAX_RATE * 100).toFixed(0)}%)`} value={formatCurrency(tax)} muted />
+        {taxes.map((tax) => (
+          <Row
+            key={tax.id}
+            label={`${tax.name} (${tax.percentage}%)`}
+            value={formatCurrency(tax.amount)}
+            muted
+          />
+        ))}
         <div className="my-2 h-px bg-border" />
         <Row label="Total" value={formatCurrency(total)} bold />
       </div>

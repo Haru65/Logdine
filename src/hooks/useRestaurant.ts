@@ -439,8 +439,8 @@ export function useSaveTaxConfig() {
       if (tenantId) qc.invalidateQueries({ queryKey: ['tax-config', tenantId] });
       toast.success('Tax settings saved');
     },
-    onError: () => {
-      toast.error('Failed to save tax settings');
+    onError: (error: any) => {
+      toast.error(error?.message || 'Failed to save tax settings');
     },
   });
 }
@@ -464,7 +464,7 @@ export function useSavePaymentSettings() {
       if (tenantId) qc.invalidateQueries({ queryKey: qk.paymentSettings(tenantId) });
       toast.success('Payment settings saved');
     },
-    onError: () => toast.error('Failed to save payment settings'),
+    onError: (error: any) => toast.error(error?.message || 'Failed to save payment settings'),
   });
 }
 
