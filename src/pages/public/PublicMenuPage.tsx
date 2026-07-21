@@ -396,9 +396,9 @@ export default function PublicMenuPage() {
           </section>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-3">
           {menuQuery.isLoading
-            ? Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-72 rounded-lg" />)
+            ? Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-40 rounded-lg" />)
             : filtered.length
               ? filtered.map((item) => <CustomerMenuCard key={item.id} item={item} />)
               : (
@@ -553,39 +553,39 @@ function CustomerMenuCard({ item }: { item: MenuItem }) {
       <motion.article
         layout
         onClick={() => setOpen(true)}
-        className="flex h-full cursor-pointer flex-col overflow-hidden rounded-lg border border-border/60 bg-card shadow-soft transition hover:-translate-y-0.5 hover:shadow-card"
+        className="flex min-h-40 w-full cursor-pointer overflow-hidden rounded-lg border border-border/60 bg-card shadow-soft transition hover:border-primary/25 hover:shadow-card"
       >
-        <div className="relative aspect-[4/3] bg-muted">
+        <div className="relative min-h-40 w-1/3 shrink-0 bg-muted">
           {item.image_url ? (
             <img
-              src={getThumbnailUrl(item.image_url, { width: 520, height: 390 })}
+              src={getThumbnailUrl(item.image_url, { width: 360, height: 480 })}
               alt={item.name}
-              className="size-full object-cover"
+              className="absolute inset-0 size-full object-cover"
               loading="lazy"
             />
           ) : (
-            <div className="grid size-full place-items-center bg-gradient-to-br from-primary/15 to-primary/5">
-              <Utensils className="size-10 text-primary/40" />
+            <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-primary/15 to-primary/5">
+              <Utensils className="size-8 text-primary/40" />
             </div>
           )}
           {item.is_spicy && (
-            <Badge variant="destructive" className="absolute right-2 top-2 gap-1">
+            <Badge variant="destructive" className="absolute left-1.5 top-1.5 gap-1 px-1.5 text-[10px]">
               <Flame className="size-3" /> Spicy
             </Badge>
           )}
         </div>
-        <div className="flex flex-1 flex-col p-3">
+        <div className="flex min-w-0 w-2/3 flex-col p-3 sm:p-4">
           <div className="flex items-start gap-2">
             <VegMark veg={item.is_veg} className="mt-0.5" />
             <div className="min-w-0 flex-1">
-              <h2 className="line-clamp-2 font-serif text-lg font-semibold leading-tight">{item.name}</h2>
+              <h2 className="line-clamp-2 font-serif text-base font-semibold leading-tight sm:text-lg">{item.name}</h2>
               <p className="mt-1 font-bold text-primary">{formatCurrency(item.price)}</p>
             </div>
           </div>
           {item.description && (
-            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
+            <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground sm:text-sm">{item.description}</p>
           )}
-          <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+          <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-2">
             <div className="flex flex-wrap gap-1">
               {hasCustomizations && <Badge variant="secondary">Customizable</Badge>}
               {item.preparation_time && (
@@ -594,7 +594,7 @@ function CustomerMenuCard({ item }: { item: MenuItem }) {
                 </Badge>
               )}
             </div>
-            <Button size="sm" className="min-w-20" onClick={(event) => { event.stopPropagation(); setOpen(true); }}>
+            <Button size="sm" className="ml-auto min-w-20" onClick={(event) => { event.stopPropagation(); setOpen(true); }}>
               {inCartCount ? `${inCartCount} added` : hasCustomizations ? 'Customize' : 'Add'}
             </Button>
           </div>

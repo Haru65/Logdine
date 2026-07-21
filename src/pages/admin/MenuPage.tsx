@@ -26,8 +26,10 @@ import {
   useCreateCategory,
   useCreateItem,
   useCreateItemsBulk,
+  useDeleteCategory,
   useDeleteItem,
   useMenuItems,
+  useUpdateCategory,
   useUpdateItem,
   useUpdateItemAddons,
   useUpdateItemVariants,
@@ -74,6 +76,8 @@ export default function MenuPage() {
   const updateItem = useUpdateItem();
   const deleteItem = useDeleteItem();
   const createCategory = useCreateCategory();
+  const updateCategory = useUpdateCategory();
+  const deleteCategory = useDeleteCategory();
 
   const [activeCat, setActiveCat] = useState<string | 'all'>('all');
   const [search, setSearch] = useState('');
@@ -81,9 +85,15 @@ export default function MenuPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<MenuCategory | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<MenuCategory | null>(null);
   const [categoryName, setCategoryName] = useState('');
 
   const defaultCategoryId = activeCat === 'all' ? categories[0]?.id : activeCat;
+  const categoryDeleteItemCount = categoryToDelete
+    ? items.filter((item) => item.category_id === categoryToDelete.id).length
+    : 0;
+  const categoryMutationPending = createCategory.isPending || updateCategory.isPending;
 
   const filtered = useMemo(() => {
     return items.filter((it) => {
@@ -104,16 +114,39 @@ export default function MenuPage() {
     const name = categoryName.trim();
     if (!name) return;
 
-    createCategory.mutate(
-      { name },
-      {
-        onSuccess: (category) => {
-          setCategoryName('');
-          setCategoryOpen(false);
-          if (category.id) setActiveCat(category.id);
+    if (editingCategory) {
+      updateCategory.mutate(
+        { id: editingCategory.id, data: { name } },
+        {
+          onSuccess: () => {
+            setCategoryName('');
+            setEditingCategory(null);
+            setCategoryOpen(false);
+          },
         },
+      );
+      return;
+    }
+
+    createCategory.mutate({ name }, {
+      onSuccess: (category) => {
+        setCategoryName('');
+        setCategoryOpen(false);
+        if (category.id) setActiveCat(category.id);
       },
-    );
+    });
+  };
+
+  const openNewCategory = () => {
+    setEditingCategory(null);
+    setCategoryName('');
+    setCategoryOpen(true);
+  };
+
+  const openEditCategory = (category: MenuCategory) => {
+    setEditingCategory(category);
+    setCategoryName(category.name);
+    setCategoryOpen(true);
   };
 
   return (
@@ -163,17 +196,42 @@ export default function MenuPage() {
               : categories.map((c) => {
                   const count = items.filter((it) => it.category_id === c.id).length;
                   return (
-                    <button
+                    <div
                       key={c.id}
-                      onClick={() => setActiveCat(c.id)}
                       className={cn(
-                        'flex max-w-[180px] shrink-0 items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors lg:w-full lg:max-w-none lg:shrink',
+                        'flex w-[230px] shrink-0 items-center rounded-lg text-sm font-medium transition-colors lg:w-full lg:shrink',
                         activeCat === c.id ? 'bg-primary/10 text-primary' : 'hover:bg-accent',
                       )}
                     >
-                      <span className="truncate">{c.name}</span>
-                      <Badge variant="secondary">{count}</Badge>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveCat(c.id)}
+                        className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2 text-left"
+                      >
+                        <span className="truncate">{c.name}</span>
+                        <Badge variant="secondary">{count}</Badge>
+                      </button>
+                      <div className="flex shrink-0 items-center pr-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditCategory(c)}
+                          className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                          aria-label={`Edit ${c.name} category`}
+                          title="Edit category"
+                        >
+                          <Pencil className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCategoryToDelete(c)}
+                          className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                          aria-label={`Delete ${c.name} category`}
+                          title="Delete category"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
           </div>
@@ -181,7 +239,7 @@ export default function MenuPage() {
             variant="ghost"
             size="sm"
             className="mt-2 w-full justify-start gap-1.5 text-muted-foreground"
-            onClick={() => setCategoryOpen(true)}
+            onClick={openNewCategory}
           >
             <Plus className="size-3.5" /> New category
           </Button>
@@ -262,13 +320,24 @@ export default function MenuPage() {
         </SheetContent>
       </Sheet>
 
-      <Dialog open={categoryOpen} onOpenChange={setCategoryOpen}>
+      <Dialog
+        open={categoryOpen}
+        onOpenChange={(open) => {
+          setCategoryOpen(open);
+          if (!open) {
+            setEditingCategory(null);
+            setCategoryName('');
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <form onSubmit={submitCategory} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>New category</DialogTitle>
+              <DialogTitle>{editingCategory ? 'Edit category' : 'New category'}</DialogTitle>
               <DialogDescription>
-                This category will only be available to the current restaurant.
+                {editingCategory
+                  ? 'Rename this category everywhere it appears in the menu.'
+                  : 'This category will only be available to the current restaurant.'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
@@ -287,15 +356,60 @@ export default function MenuPage() {
                 type="button"
                 variant="outline"
                 onClick={() => setCategoryOpen(false)}
-                disabled={createCategory.isPending}
+                disabled={categoryMutationPending}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={!categoryName.trim() || createCategory.isPending}>
-                {createCategory.isPending ? 'Creating…' : 'Create category'}
+              <Button type="submit" disabled={!categoryName.trim() || categoryMutationPending}>
+                {categoryMutationPending
+                  ? (editingCategory ? 'Saving…' : 'Creating…')
+                  : (editingCategory ? 'Save changes' : 'Create category')}
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!categoryToDelete} onOpenChange={(open) => !open && setCategoryToDelete(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {categoryDeleteItemCount > 0 ? 'Category cannot be deleted' : 'Delete category?'}
+            </DialogTitle>
+            <DialogDescription>
+              {categoryDeleteItemCount > 0
+                ? `“${categoryToDelete?.name}” contains ${categoryDeleteItemCount} menu ${categoryDeleteItemCount === 1 ? 'item' : 'items'}. Move or delete those items first.`
+                : `“${categoryToDelete?.name}” will be removed from this restaurant. This action cannot be undone.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCategoryToDelete(null)}
+              disabled={deleteCategory.isPending}
+            >
+              {categoryDeleteItemCount > 0 ? 'Close' : 'Cancel'}
+            </Button>
+            {categoryDeleteItemCount === 0 && categoryToDelete && (
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={deleteCategory.isPending}
+                onClick={() => {
+                  const categoryId = categoryToDelete.id;
+                  deleteCategory.mutate(categoryId, {
+                    onSuccess: () => {
+                      if (activeCat === categoryId) setActiveCat('all');
+                      setCategoryToDelete(null);
+                    },
+                  });
+                }}
+              >
+                {deleteCategory.isPending ? 'Deleting…' : 'Delete category'}
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

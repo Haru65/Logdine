@@ -298,6 +298,40 @@ export function useCreateCategory() {
   });
 }
 
+export function useUpdateCategory() {
+  const tenantId = useTenantId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Pick<MenuCategory, 'name'> & { sort_order?: number } }) =>
+      restaurantService.updateCategory(requireTenantId(tenantId), id, data),
+    onSuccess: () => {
+      if (tenantId) qc.invalidateQueries({ queryKey: qk.categories(tenantId) });
+      toast.success('Category updated');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || error?.message || 'Could not update category');
+    },
+  });
+}
+
+export function useDeleteCategory() {
+  const tenantId = useTenantId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => restaurantService.deleteCategory(requireTenantId(tenantId), id),
+    onSuccess: () => {
+      if (tenantId) {
+        qc.invalidateQueries({ queryKey: qk.categories(tenantId) });
+        qc.invalidateQueries({ queryKey: qk.items(tenantId) });
+      }
+      toast.success('Category deleted');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || error?.message || 'Could not delete category');
+    },
+  });
+}
+
 // -------------------------------- Orders ---------------------------------
 export function useOrders(filters?: { status?: OrderStatus }) {
   const tenantId = useTenantId();

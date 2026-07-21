@@ -57,6 +57,7 @@ export interface MenuCategory {
   name: string;
   description?: string;
   display_order?: number;
+  sort_order?: number;
   is_active?: boolean;
   icon?: string;
 }
