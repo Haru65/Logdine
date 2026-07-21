@@ -396,9 +396,9 @@ export default function PublicMenuPage() {
           </section>
         ) : null}
 
-        <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-3">
+        <div className="mx-auto grid w-full max-w-xl grid-cols-1 gap-2.5">
           {menuQuery.isLoading
-            ? Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-40 rounded-lg" />)
+            ? Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-28 rounded-lg" />)
             : filtered.length
               ? filtered.map((item) => <CustomerMenuCard key={item.id} item={item} />)
               : (
@@ -553,12 +553,12 @@ function CustomerMenuCard({ item }: { item: MenuItem }) {
       <motion.article
         layout
         onClick={() => setOpen(true)}
-        className="flex min-h-40 w-full cursor-pointer overflow-hidden rounded-lg border border-border/60 bg-card shadow-soft transition hover:border-primary/25 hover:shadow-card"
+        className="flex h-28 w-full cursor-pointer overflow-hidden rounded-lg border border-border/60 bg-card shadow-soft transition hover:border-primary/25 hover:shadow-card"
       >
-        <div className="relative min-h-40 w-1/3 shrink-0 bg-muted">
+        <div className="relative h-full w-1/3 shrink-0 bg-muted">
           {item.image_url ? (
             <img
-              src={getThumbnailUrl(item.image_url, { width: 360, height: 480 })}
+              src={getThumbnailUrl(item.image_url, { width: 280, height: 280 })}
               alt={item.name}
               className="absolute inset-0 size-full object-cover"
               loading="lazy"
@@ -568,33 +568,33 @@ function CustomerMenuCard({ item }: { item: MenuItem }) {
               <Utensils className="size-8 text-primary/40" />
             </div>
           )}
-          {item.is_spicy && (
-            <Badge variant="destructive" className="absolute left-1.5 top-1.5 gap-1 px-1.5 text-[10px]">
-              <Flame className="size-3" /> Spicy
-            </Badge>
-          )}
         </div>
-        <div className="flex min-w-0 w-2/3 flex-col p-3 sm:p-4">
-          <div className="flex items-start gap-2">
+        <div className="flex min-w-0 w-2/3 flex-col overflow-hidden p-2.5">
+          <div className="flex items-start gap-1.5">
             <VegMark veg={item.is_veg} className="mt-0.5" />
-            <div className="min-w-0 flex-1">
-              <h2 className="line-clamp-2 font-serif text-base font-semibold leading-tight sm:text-lg">{item.name}</h2>
-              <p className="mt-1 font-bold text-primary">{formatCurrency(item.price)}</p>
-            </div>
+            <h2 className="line-clamp-1 min-w-0 flex-1 font-serif text-sm font-semibold leading-tight sm:text-base">{item.name}</h2>
           </div>
           {item.description && (
-            <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground sm:text-sm">{item.description}</p>
+            <p className="mt-1 line-clamp-1 text-[11px] leading-4 text-muted-foreground sm:text-xs">{item.description}</p>
           )}
-          <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-2">
-            <div className="flex flex-wrap gap-1">
-              {hasCustomizations && <Badge variant="secondary">Customizable</Badge>}
+          {(hasCustomizations || item.preparation_time || item.is_spicy) && (
+            <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden text-[10px] font-medium text-muted-foreground">
+              {hasCustomizations && <span className="truncate">Customizable</span>}
               {item.preparation_time && (
-                <Badge variant="outline" className="gap-1">
-                  <Clock className="size-3" /> {item.preparation_time} min
-                </Badge>
+                <span className="flex shrink-0 items-center gap-0.5">
+                  <Clock className="size-2.5" /> {item.preparation_time} min
+                </span>
+              )}
+              {item.is_spicy && (
+                <span className="flex shrink-0 items-center gap-0.5 text-destructive">
+                  <Flame className="size-2.5" /> Spicy
+                </span>
               )}
             </div>
-            <Button size="sm" className="ml-auto min-w-20" onClick={(event) => { event.stopPropagation(); setOpen(true); }}>
+          )}
+          <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+            <p className="text-sm font-bold text-primary">{formatCurrency(item.price)}</p>
+            <Button size="sm" className="h-8 min-w-16 px-3" onClick={(event) => { event.stopPropagation(); setOpen(true); }}>
               {inCartCount ? `${inCartCount} added` : hasCustomizations ? 'Customize' : 'Add'}
             </Button>
           </div>
