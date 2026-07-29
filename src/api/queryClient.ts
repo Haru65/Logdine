@@ -32,6 +32,9 @@ export const qk = {
   orders: (tenantId: string, filters?: object) =>
     filters ? (['orders', tenantId, filters] as const) : (['orders', tenantId] as const),
   order: (tenantId: string, orderId: string) => ['orders', tenantId, orderId] as const,
+  paymentLogs: (tenantId: string, filters?: object) =>
+    filters ? (['payment-logs', tenantId, filters] as const) : (['payment-logs', tenantId] as const),
+  paymentLog: (tenantId: string, orderId: string) => ['payment-logs', tenantId, orderId] as const,
 
   reports: {
     revenue: (tenantId: string, period: string, dates?: object) => ['reports', tenantId, 'revenue', period, dates] as const,

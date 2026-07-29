@@ -11,6 +11,7 @@ import type {
   MenuItem,
   MenuVariant,
   OrderStatus,
+  PaymentLogFilters,
   PaymentStatus,
   PaymentConfig,
   PaymentSettings,
@@ -450,6 +451,43 @@ export function useDeleteCombo() {
     onSuccess: () => {
       if (tenantId) qc.invalidateQueries({ queryKey: qk.combos(tenantId) });
       toast.success('Combo deleted');
+    },
+  });
+}
+
+// ----------------------- Payment audit logs -------------------------------
+export function usePaymentLogs(filters?: PaymentLogFilters) {
+  const tenantId = useTenantId();
+  return useQuery({
+    queryKey: tenantId ? qk.paymentLogs(tenantId, filters) : ['payment-logs', 'none', filters],
+    queryFn: () => restaurantService.getPaymentLogs(requireTenantId(tenantId), filters),
+    enabled: Boolean(tenantId),
+  });
+}
+
+export function usePaymentLogDetails(orderId: string | null) {
+  const tenantId = useTenantId();
+  return useQuery({
+    queryKey: tenantId && orderId ? qk.paymentLog(tenantId, orderId) : ['payment-logs', 'none', orderId],
+    queryFn: () => restaurantService.getPaymentLogDetails(requireTenantId(tenantId), String(orderId)),
+    enabled: Boolean(tenantId && orderId),
+  });
+}
+
+export function useReconcilePaymentLog() {
+  const tenantId = useTenantId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => restaurantService.reconcilePaymentLog(requireTenantId(tenantId), orderId),
+    onSuccess: (_data, orderId) => {
+      if (tenantId) {
+        qc.invalidateQueries({ queryKey: qk.paymentLogs(tenantId) });
+        qc.invalidateQueries({ queryKey: qk.paymentLog(tenantId, orderId) });
+      }
+      toast.success('Paytm status refreshed');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || error?.message || 'Failed to refresh Paytm status');
     },
   });
 }

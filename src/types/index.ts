@@ -134,7 +134,7 @@ export type OrderStatus =
 
 export type OrderType = 'dine_in' | 'take_away' | 'delivery';
 export type PaymentMethod = 'cash' | 'card' | 'online' | 'upi';
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+export type PaymentStatus = 'pending' | 'paid' | 'completed' | 'failed' | 'refunded';
 
 export interface OrderItem {
   id: string;
@@ -152,12 +152,18 @@ export interface OrderItem {
 export interface Order {
   id: string;
   tenant_id: string;
+  order_number?: string;
   table_id?: string;
   table_number?: string;
+  table_name?: string;
   type: OrderType;
   status: OrderStatus;
   payment_status: PaymentStatus;
   payment_method?: PaymentMethod;
+  payment_provider?: string;
+  payment_provider_account_id?: string | null;
+  payment_order_id?: string | null;
+  payment_id?: string | null;
   source_type?: string;
   order_source?: 'qr' | string;
   total_amount: number;
@@ -170,6 +176,74 @@ export interface Order {
   items: OrderItem[];
   created_at: string;
   updated_at: string;
+}
+
+export interface PaymentLog {
+  id: string;
+  tenant_id: string;
+  order_id: string;
+  provider: string;
+  provider_account_id?: string | null;
+  event_type: string;
+  event_source: string;
+  payment_status: PaymentStatus | string;
+  gateway_status?: string | null;
+  gateway_order_id?: string | null;
+  gateway_transaction_id?: string | null;
+  amount?: number | string | null;
+  currency?: string;
+  payment_mode?: string | null;
+  payer_upi_id?: string | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  gateway_response?: unknown;
+  event_at: string;
+  created_at?: string;
+}
+
+export interface PaymentLedgerRow {
+  id: string;
+  order_number?: string;
+  order_status: OrderStatus | string;
+  payment_status: PaymentStatus | string;
+  payment_provider: string;
+  payment_provider_account_id?: string | null;
+  payment_order_id?: string | null;
+  payment_id?: string | null;
+  total_amount: number | string;
+  created_at: string;
+  updated_at?: string;
+  table_name?: string | null;
+  latest_log_id?: string | null;
+  latest_event_type?: string | null;
+  latest_event_source?: string | null;
+  gateway_status?: string | null;
+  gateway_transaction_id?: string | null;
+  payment_mode?: string | null;
+  payer_upi_id?: string | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  payment_event_at?: string | null;
+}
+
+export interface PaymentLogFilters {
+  startDate?: string;
+  endDate?: string;
+  paymentStatus?: string;
+  orderStatus?: string;
+  provider?: string;
+  search?: string;
+  limit?: number;
+}
+
+export interface PaymentLogLedger {
+  items: PaymentLedgerRow[];
+  limit: number;
+}
+
+export interface PaymentAuditDetails {
+  order: Order;
+  logs: PaymentLog[];
 }
 
 // --------------------------------------------------------------------
@@ -216,6 +290,8 @@ export interface RevenueReport {
     total_orders: number;
     avg_order_value: number;
     payment_success_rate: number;
+    paid_orders?: number;
+    paid_revenue?: number;
     cash_orders?: number;
     cash_revenue?: number;
     online_orders?: number;

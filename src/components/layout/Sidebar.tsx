@@ -9,6 +9,7 @@ import {
   Settings,
   Wand2,
   ChevronLeft,
+  ClipboardList,
   CreditCard,
   PlugZap,
   Boxes,
@@ -36,6 +37,7 @@ const groups: NavGroup[] = [
     label: 'Orders',
     items: [
       { to: '/kds', label: 'Kitchen Display', icon: ChefHat },
+      { to: '/orders-payments', label: 'Orders & Payments', icon: ClipboardList },
     ],
   },
   {

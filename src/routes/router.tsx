@@ -13,6 +13,7 @@ const MenuPage = lazy(() => import('@/pages/admin/MenuPage'));
 const MenuOCRWorkflowPage = lazy(() => import('@/pages/admin/MenuOCRWorkflowPage'));
 const TablesPage = lazy(() => import('@/pages/admin/TablesPage'));
 const ReportsPage = lazy(() => import('@/pages/admin/ReportsPage'));
+const OrdersPaymentsPage = lazy(() => import('@/pages/admin/OrdersPaymentsPage'));
 const OffersPage = lazy(() => import('@/pages/admin/OffersPage'));
 const ComboManagementPage = lazy(() => import('@/pages/admin/ComboManagementPage'));
 const PaymentConfigPage = lazy(() => import('@/pages/admin/PaymentConfigPage'));
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
       { path: 'billing', element: <Navigate to="/kds" replace /> },
       { path: 'kds', element: withSuspense(<KDSPage />) },
       { path: 'orders', element: <Navigate to="/kds" replace /> },
+      { path: 'orders-payments', element: withSuspense(<OrdersPaymentsPage />) },
       { path: 'menu', element: withSuspense(<MenuPage />) },
       { path: 'menu/extraction', element: withSuspense(<MenuOCRWorkflowPage />) },
       { path: 'tables', element: withSuspense(<TablesPage />) },

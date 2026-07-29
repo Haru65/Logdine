@@ -32,7 +32,7 @@ const mobileGroups = [
   {
     label: 'Orders',
     items: [
-      { to: '/orders', label: 'Orders', icon: ClipboardList },
+      { to: '/orders-payments', label: 'Orders & Payments', icon: ClipboardList },
       { to: '/kds', label: 'Kitchen Display', icon: ChefHat },
     ],
   },

@@ -11,7 +11,10 @@ import type {
   Offer,
   Order,
   OrderStatus,
+  PaymentAuditDetails,
   PaymentConfig,
+  PaymentLogFilters,
+  PaymentLogLedger,
   PaymentSettings,
   PaymentProvider,
   PaymentStatus,
@@ -54,12 +57,18 @@ function normalizeOrder(raw: unknown): Order {
   return {
     id: String(order.id ?? order.orderId ?? ''),
     tenant_id: String(order.tenant_id ?? order.restaurantId ?? ''),
+    order_number: order.order_number ?? order.orderNumber,
     table_id: order.table_id ?? order.tableId,
     table_number: order.table_number ?? order.tableName ?? order.table?.name,
+    table_name: order.table_name ?? order.tableName ?? order.table?.name,
     type: order.type ?? (order.source_type === 'delivery' ? 'delivery' : order.source_type === 'take_away' ? 'take_away' : 'dine_in'),
     status: status ?? 'pending',
     payment_status: paymentStatus === 'completed' ? 'paid' : paymentStatus,
     payment_method: normalizePaymentMethod(order.payment_method ?? order.paymentMethod ?? order.payment_provider),
+    payment_provider: order.payment_provider ?? order.paymentProvider,
+    payment_provider_account_id: order.payment_provider_account_id ?? order.paymentProviderAccountId,
+    payment_order_id: order.payment_order_id ?? order.paymentOrderId,
+    payment_id: order.payment_id ?? order.paymentId,
     source_type: order.source_type ?? order.sourceType,
     order_source: order.order_source ?? order.orderSource ?? (order.source_type === 'table' || order.sourceType === 'table' ? 'qr' : order.source_type ?? order.sourceType),
     total_amount: Number(order.total_amount ?? order.totalAmount ?? order.total ?? 0),
@@ -399,6 +408,36 @@ export const restaurantService = {
   ): Promise<Order> {
     const res = await apiClient.put(endpoints.restaurant(tenantId).orderItem(orderId, itemId), data);
     return unwrap<Order>(res.data);
+  },
+
+  async getPaymentLogs(tenantId: string, filters?: PaymentLogFilters): Promise<PaymentLogLedger> {
+    const res = await apiClient.get(endpoints.restaurant(tenantId).paymentLogs, { params: filters });
+    const data = unwrap<PaymentLogLedger>(res.data);
+    return {
+      ...data,
+      items: (data.items || []).map((item) => ({
+        ...item,
+        total_amount: Number(item.total_amount || 0),
+      })),
+    };
+  },
+
+  async getPaymentLogDetails(tenantId: string, orderId: string): Promise<PaymentAuditDetails> {
+    const res = await apiClient.get(endpoints.restaurant(tenantId).paymentLog(orderId));
+    const data = unwrap<PaymentAuditDetails>(res.data);
+    return {
+      ...data,
+      order: normalizeOrder(data.order),
+      logs: (data.logs || []).map((log) => ({
+        ...log,
+        amount: log.amount == null ? null : Number(log.amount),
+      })),
+    };
+  },
+
+  async reconcilePaymentLog(tenantId: string, orderId: string): Promise<unknown> {
+    const res = await apiClient.post(endpoints.restaurant(tenantId).reconcilePaymentLog(orderId));
+    return unwrap<unknown>(res.data);
   },
 
   // ------------------------------- Reports -----------------------------------

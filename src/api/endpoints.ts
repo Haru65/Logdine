@@ -45,6 +45,10 @@ export const endpoints = {
     orders: `/admin/restaurant/${tenantId}/orders`,
     order: (id: string) => `/admin/restaurant/${tenantId}/orders/${id}`,
     orderPayment: (id: string) => `/admin/restaurant/${tenantId}/orders/${id}/payment`,
+    paymentLogs: `/admin/restaurant/${tenantId}/payment-logs`,
+    paymentLog: (orderId: string) => `/admin/restaurant/${tenantId}/payment-logs/${orderId}`,
+    reconcilePaymentLog: (orderId: string) =>
+      `/admin/restaurant/${tenantId}/payment-logs/${orderId}/reconcile`,
     orderItem: (orderId: string, itemId: string) =>
       `/admin/restaurant/${tenantId}/orders/${orderId}/items/${itemId}`,
 

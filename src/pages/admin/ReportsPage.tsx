@@ -277,7 +277,7 @@ export default function ReportsPage() {
       <div className="mb-4 grid gap-3 md:grid-cols-4">
         <Metric title="Revenue" value={formatCurrency(summary?.total_revenue ?? 0)} loading={revLoading} />
         <Metric title="Orders" value={String(summary?.total_orders ?? 0)} loading={revLoading} />
-        <Metric title="Avg order" value={formatCurrency(summary?.avg_order_value ?? 0)} loading={revLoading} />
+        <Metric title="Avg paid order" value={formatCurrency(summary?.avg_order_value ?? 0)} loading={revLoading} />
         <Metric title="Items sold" value={String(products?.summary?.total_items_sold ?? 0)} loading={prodLoading} />
       </div>
 
