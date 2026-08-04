@@ -82,7 +82,7 @@ export default function LoginPage() {
 
           <div className="mt-9">
             <h1 className="font-serif text-[34px] font-bold leading-tight tracking-tight text-[#202a3b]">Welcome back</h1>
-            <p className="mt-2 text-sm leading-6 text-[#697386]">Sign in to manage orders, menus, payments, and your restaurant team.</p>
+            <p className="mt-2 text-sm leading-6 text-[#697386]">Sign in to manage orders, menus, payments, and your Cafe team.</p>
           </div>
 
           <form className="mt-7 space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
