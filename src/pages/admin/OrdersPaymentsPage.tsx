@@ -270,6 +270,14 @@ function LedgerRow({
   reconciling: boolean;
 }) {
   const isPaytm = String(row.payment_provider || '').toLowerCase() === 'paytm';
+  const hasPaytmDetails = Boolean(
+    row.payment_order_id || 
+    row.payment_id || 
+    row.gateway_order_id || 
+    row.gateway_transaction_id
+  );
+  const canReconcile = isPaytm && hasPaytmDetails;
+  
   return (
     <TableRow>
       <TableCell>
@@ -317,7 +325,7 @@ function LedgerRow({
                 <Eye className="size-4" />
                 View details
               </DropdownMenu.Item>
-              {isPaytm && (
+              {canReconcile ? (
                 <DropdownMenu.Item
                   className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent"
                   onSelect={onReconcile}
@@ -326,7 +334,15 @@ function LedgerRow({
                   <RefreshCw className={cn('size-4', reconciling && 'animate-spin')} />
                   Fetch Paytm status
                 </DropdownMenu.Item>
-              )}
+              ) : isPaytm ? (
+                <DropdownMenu.Item
+                  className="flex cursor-not-allowed items-center gap-2 rounded-sm px-2 py-2 text-sm text-muted-foreground outline-none"
+                  disabled
+                >
+                  <AlertTriangle className="size-4" />
+                  Missing transaction ID
+                </DropdownMenu.Item>
+              ) : null}
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
