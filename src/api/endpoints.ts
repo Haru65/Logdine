@@ -95,9 +95,9 @@ export const endpoints = {
     paymentWebhook: '/api/public/payment/webhook',
   },
   paytm: {
-    createTransaction: '/api/paytm-production/create-transaction',
-    createOrder: '/api/paytm-production/create-order',
-    verify: '/api/paytm-production/verify',
+    createTransaction: '/api/paytm/create-transaction',
+    createOrder: '/api/paytm/create-order',
+    verify: '/api/paytm/verify',
     callback: '/payments/paytm/callback',
   },
   webhooks: {
