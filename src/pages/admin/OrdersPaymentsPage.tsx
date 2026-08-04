@@ -273,7 +273,6 @@ function LedgerRow({
   const hasPaytmDetails = Boolean(
     row.payment_order_id || 
     row.payment_id || 
-    row.gateway_order_id || 
     row.gateway_transaction_id
   );
   const canReconcile = isPaytm && hasPaytmDetails;
