@@ -436,7 +436,7 @@ export const restaurantService = {
   },
 
   async reconcilePaymentLog(tenantId: string, orderId: string): Promise<unknown> {
-    const res = await apiClient.post(endpoints.restaurant(tenantId).reconcilePaymentLog(orderId));
+    const res = await apiClient.post(endpoints.restaurant(tenantId).reconcilePaymentLog(orderId), {});
     return unwrap<unknown>(res.data);
   },
 
